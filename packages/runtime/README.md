@@ -109,3 +109,32 @@ keys the runtime itself uses. The generator's `i18n.defaults.json` is the `defau
 
 `pnpm -F @star-board/runtime test` — RTL `renderHook` under the providers with stubbed ports; the
 client and the default operations port are exercised through msw against a hand-built FeatureModel.
+
+## Agent affordance (`src/agent/`)
+
+The "ask the agent" affordance (hexagonal-rules shared/13 §3–§4, typescript/12 §2) over the
+application MCP. `McpAgentPort(transport, { principal?, log?, now? })` implements `AgentPort` over
+a minimal `McpTransport { request('tools/list' | 'tools/call', params?) }` so a test stubs it in two
+lines, and adds the typed helpers:
+
+| Call                                 | Tool                     | Returns                                                                      |
+| ------------------------------------ | ------------------------ | ---------------------------------------------------------------------------- |
+| `why(operationId, args)`             | `why_<operationId>`      | `WhyResult { rationale, citations?: { label, ref }[] }`                      |
+| `simulate(operationId, args)`        | `simulate_<operationId>` | `SimulateResult { diff, warnings: string[], wouldSucceed }`                  |
+| `apply(operationId, args, ifMatch?)` | `<operationId>`          | the parsed tool result; `ifMatch` travels as `_meta.ifMatch` of `tools/call` |
+
+A tool result is read as `structuredContent`, else its text content parsed as JSON when it is
+JSON, else the text (a `why_` text becomes the rationale; a `simulate_` text becomes the diff and is
+assumed to succeed). `isError: true` throws `AgentToolError`. Every call appends one `AuditRow`
+`{ at, tool, argsHash, actor: 'agent', principal, kind, outcome }` to an in-memory, bounded
+`AgentAuditLog` (`audit()`, `subscribe()`); `argsHash` is FNV-1a 64 of the canonical JSON of the
+arguments (`canonicalJson`, `fnv1a64`), so the log identifies calls without keeping their inputs.
+Simulations are logged with `kind: 'simulate'`.
+
+`useAgent()` → `{ available, tools, why, simulate, apply, audit }` from `useServices().agent`:
+`available` is false without an agent port (the affordance then renders nothing), `tools` is the
+capability-filtered `tools/list`, `audit` re-renders after every call. A plain `{ listTools, call }`
+port is wrapped once per instance by `withAgentAffordance`, which records the auth principal.
+`useAgentTools(operationIds)` keeps the ids that have a tool of the same name; `agentParityIssues(
+visibleOperationIds, toolNames)` is the pure check that this agrees with `useCapabilities`
+(`action-without-tool`, `tool-without-action`; `why_`/`simulate_` helpers are not actions).

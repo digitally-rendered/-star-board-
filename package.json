@@ -31,7 +31,10 @@
     "codegen:check": "pnpm -F @star-board/cli run check:example",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
-    "prepare": "husky"
+    "prepare": "husky",
+    "storybook": "pnpm -F @star-board/storybook storybook",
+    "build-storybook": "pnpm -F @star-board/storybook build-storybook",
+    "test:visual": "pnpm -F @star-board/storybook test"
   },
   "devDependencies": {
     "@changesets/changelog-github": "1.0.1",

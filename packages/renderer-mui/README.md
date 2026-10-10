@@ -81,3 +81,28 @@ component; parity: every `COMPONENT_KEYS` entry plus `list.column.<LIST_COLUMN_T
 after `registerDefaults` on a fresh registry and has a manifest entry. jsdom has no layout, so
 `DataGridList` exposes `disableVirtualization` as a test-only seam that makes the virtualised
 grid render its rows; production never sets it.
+
+## Agent panel (`src/agent/AgentPanel.tsx`)
+
+`registerDefaults` makes one registration beyond the one-per-key defaults: `screen.custom` at
+target `agent-panel` (`AGENT_PANEL_TARGET`), schema `'*'`, source `generated`. It is target-exact,
+so it never shadows the universal `screen.custom`; the generated `AgentPanelSlot` resolves it with
+`useComponent('screen.custom', schema, 'agent-panel')`. `EXTRA_REGISTRATIONS` is that count for
+the parity test.
+
+`AgentPanel { operationId, args, ifMatch?, onApplied?, disabled? }` (the generated slot's
+`schema`/`values` are accepted; `values` stands in for `args`) renders nothing when
+`useAgent().available` is false or the operation has no tool in the capability-filtered list —
+the same filter that hides the action. Otherwise a collapsible outlined `Card` (`role="region"`,
+`aria-labelledby` its `h2`, `data-testid="agent-panel"`, `data-agent-state`) with Explain
+(`why_` rationale and citation links), Simulate (the diff as pretty JSON in a labelled `<pre>`,
+warnings, a would-fail notice) and Apply, enabled only after a simulation that `wouldSucceed`
+while not `disabled`; Apply calls `apply(operationId, args, ifMatch)` then `onApplied(result)`.
+New `args` (by hash) reset the simulation. The last five audit rows (tool, time, kind, outcome)
+are listed. Every interactive element is `data-testid="agent-<action>"`
+(`toggle explain simulate apply citation-<i>`). Strings are the `agent.*` keys in
+`RENDERER_DEFAULT_MESSAGES`.
+
+`AgentPanelView` is the presentational half; `agentPanelStories` (`src/manifest.ts`) lists one
+entry per state (`hidden idle explained simulated applied`) with `target: 'agent-panel'`, kept
+apart from `stories` so the one-per-key parity holds.

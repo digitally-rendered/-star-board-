@@ -2,6 +2,7 @@ import type { ComponentKey, ComponentRegistry } from '@star-board/core';
 import { LIST_COLUMN_TYPES } from '@star-board/tokens';
 import type { ElementType } from 'react';
 import { CreateAction, CustomAction, DeleteAction, UpdateAction } from './actions/ActionButton.js';
+import { AGENT_PANEL_TARGET, AgentPanel } from './agent/AgentPanel.js';
 import {
   BooleanField,
   DateTimeField,
@@ -64,10 +65,22 @@ export const DEFAULT_COMPONENTS: ReadonlyMap<ComponentKey, AnyComponent> = new M
 
 /**
  * Registers every default as the universal match (`schema '*'`, `target '*'`, no scope,
- * `source 'generated'`), so any override at any specificity wins (shared/01 §6a).
+ * `source 'generated'`), so any override at any specificity wins (shared/01 §6a). One more
+ * registration, `screen.custom` for target `agent-panel`, is the agent affordance the generated
+ * `AgentPanelSlot` resolves; it is target-exact so it never shadows the universal `screen.custom`.
  */
 export function registerDefaults(registry: ComponentRegistry): void {
   for (const [key, component] of DEFAULT_COMPONENTS) {
     registry.register({ key, schema: '*', target: '*', component, source: 'generated' });
   }
+  registry.register({
+    key: 'screen.custom',
+    schema: '*',
+    target: AGENT_PANEL_TARGET,
+    component: AgentPanel,
+    source: 'generated',
+  });
 }
+
+/** Registrations beyond the one-per-key defaults; the parity test accounts for them. */
+export const EXTRA_REGISTRATIONS = 1;

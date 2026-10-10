@@ -24,6 +24,9 @@
   },
   "scripts": {
     "build": "tsdown",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "generate:stories": "node scripts/gen-stories.ts",
     "test": "vitest run"
   },
   "dependencies": {
@@ -40,12 +43,17 @@
     "react-dom": ">=19"
   },
   "devDependencies": {
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "@storybook/addon-a11y": "10.6.1",
+    "@storybook/react-vite": "10.6.1",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.7",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "jsdom": "28.1.0"
+    "@vitejs/plugin-react": "6.1.2",
+    "jsdom": "28.1.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "storybook": "10.6.1",
+    "vite": "8.3.4"
   }
 }

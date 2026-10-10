@@ -5,9 +5,19 @@
     "outDir": ".tsbuild",
     "tsBuildInfoFile": ".tsbuild/.tsbuildinfo",
     "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": true,
     "types": ["node", "react"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "*.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "test/**/*.ts",
+    "types/**/*.d.ts",
+    "scripts/**/*.ts",
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx",
+    "*.config.ts"
+  ],
   "references": [
     {
       "path": "../core"

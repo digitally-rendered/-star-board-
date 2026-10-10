@@ -41,5 +41,25 @@ export {
   type ThemeRootProps,
 } from './theme/ThemeRoot.js';
 export { RENDERER_DEFAULT_MESSAGES, useText, type RendererMessageKey } from './i18n.js';
-export { DEFAULT_COMPONENTS, registerDefaults, type AnyComponent } from './registerDefaults.js';
-export { stories, type ManifestEntry } from './manifest.js';
+export {
+  DEFAULT_COMPONENTS,
+  EXTRA_REGISTRATIONS,
+  registerDefaults,
+  type AnyComponent,
+} from './registerDefaults.js';
+export {
+  agentPanelStories,
+  stories,
+  type AgentPanelManifestEntry,
+  type ManifestEntry,
+} from './manifest.js';
+export {
+  AGENT_AUDIT_ROWS,
+  AGENT_PANEL_TARGET,
+  AgentPanel,
+  AgentPanelView,
+  agentTestId,
+  type AgentPanelProps,
+  type AgentPanelState,
+  type AgentPanelViewProps,
+} from './agent/AgentPanel.js';

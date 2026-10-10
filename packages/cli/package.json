@@ -1,12 +1,15 @@
 {
   "name": "@star-board/cli",
   "version": "0.0.1",
-  "description": "star-board generate | check | init | tokens build | tokens sync | parity | map-components.",
+  "description": "star-board generate | check | init | tokens build | tokens lint | parity.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "engines": {
     "node": ">=22"
+  },
+  "bin": {
+    "star-board": "./dist/bin.js"
   },
   "files": [
     "dist",
@@ -24,7 +27,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:example": "node dist/bin.js check --document ../../fixtures/petstore.json --out ../../examples/petstore-ui/src/generated --features ../../examples/petstore-ui/src/features"
   },
   "dependencies": {
     "@star-board/core": "workspace:*",

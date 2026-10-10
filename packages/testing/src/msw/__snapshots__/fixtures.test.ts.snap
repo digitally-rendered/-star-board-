@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`fixtures(model, schema, n) > is deterministic for a seed and differs across seeds 1`] = `
+[
+  {
+    "created_at": "2026-01-01T14:51:05.310Z",
+    "created_by": "created_by charlie 0",
+    "entity_id": "4f16a548-5f7a-4648-adc2-355040584f0b",
+    "name": "name alpha 0",
+    "notes": "notes hotel 0",
+    "record_version": 1,
+    "species": "bird",
+    "status": "sold",
+  },
+  {
+    "created_at": "2026-01-02T22:19:28.926Z",
+    "created_by": "created_by charlie 1",
+    "entity_id": "c21399a9-bf12-46fa-b1a6-14c75ec9a765",
+    "name": "name hotel 1",
+    "notes": "notes foxtrot 1",
+    "record_version": 1,
+    "species": "bird",
+    "status": "available",
+  },
+  {
+    "created_at": "2026-01-03T05:15:25.620Z",
+    "created_by": "created_by hotel 2",
+    "entity_id": "38095f4a-a439-4e06-953c-7fb029382b15",
+    "name": "name juliet 2",
+    "notes": "notes delta 2",
+    "record_version": 1,
+    "species": "bird",
+    "status": "pending",
+  },
+]
+`;

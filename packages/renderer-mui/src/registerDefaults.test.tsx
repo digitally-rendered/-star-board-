@@ -2,7 +2,9 @@ import { ComponentRegistry, COMPONENT_KEYS, type ComponentKey } from '@star-boar
 import { LIST_COLUMN_TYPES } from '@star-board/tokens';
 import { describe, expect, it } from 'vitest';
 import { stories } from './manifest.js';
-import { DEFAULT_COMPONENTS, registerDefaults } from './registerDefaults.js';
+import { AGENT_PANEL_TARGET, AgentPanel } from './agent/AgentPanel.js';
+import { DEFAULT_COMPONENTS, EXTRA_REGISTRATIONS, registerDefaults } from './registerDefaults.js';
+import { CustomScreen } from './screens/ScreenShell.js';
 
 /** Every key the contract names: the fixed set plus `list.column.<type>` over the tokens' types. */
 export const CONTRACT_KEYS: readonly ComponentKey[] = [
@@ -24,7 +26,19 @@ describe('registerDefaults — parity with the component contract', () => {
       expect(registration.specificity).toBe(1);
       expect(typeof registration.component).toBe('function');
     }
-    expect(registry.size).toBe(CONTRACT_KEYS.length);
+    // one registration per key plus the target-exact agent panel
+    expect(registry.size).toBe(CONTRACT_KEYS.length + EXTRA_REGISTRATIONS);
+  });
+
+  it('registers the agent panel for screen.custom at target agent-panel only', () => {
+    const registry = new ComponentRegistry();
+    registerDefaults(registry);
+    const panel = registry.resolve('screen.custom', 'pet', AGENT_PANEL_TARGET, { role: 'any' });
+    expect(panel.component).toBe(AgentPanel);
+    expect(panel.target).toBe(AGENT_PANEL_TARGET);
+    expect(panel.schema).toBe('*');
+    expect(panel.source).toBe('generated');
+    expect(registry.resolve('screen.custom', 'pet', 'anything').component).toBe(CustomScreen);
   });
 
   it('implements exactly the contract keys, no more', () => {

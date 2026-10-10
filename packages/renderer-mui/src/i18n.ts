@@ -20,6 +20,19 @@ export const RENDERER_DEFAULT_MESSAGES = {
   'screen.actions': 'Actions',
   'screen.breadcrumbs': 'Breadcrumb',
   'screen.skipTarget': 'Main content',
+  'agent.title': 'Ask the agent',
+  'agent.explain': 'Explain',
+  'agent.simulate': 'Simulate',
+  'agent.apply': 'Apply',
+  'agent.rationale': 'Why',
+  'agent.citations': 'Sources',
+  'agent.diff': 'Proposed change',
+  'agent.warnings': 'Warnings',
+  'agent.wouldFail': 'This change would not succeed.',
+  'agent.applied': 'Applied.',
+  'agent.audit': 'Agent activity',
+  'agent.toggle': 'Show or hide the agent panel',
+  'agent.unavailable': 'The agent is not available right now.',
 } as const satisfies Record<string, string>;
 
 export type RendererMessageKey = keyof typeof RENDERER_DEFAULT_MESSAGES;

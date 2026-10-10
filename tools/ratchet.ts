@@ -21,10 +21,13 @@ const files: string[] = [];
 walk('packages', files);
 const counts: Record<string, number> = Object.fromEntries(Object.keys(COUNTERS).map((k) => [k, 0]));
 for (const f of files) {
-  // A line carrying `// ratchet-allow: <reason>` (reason required) is excluded from every counter.
-  const text = readFileSync(f, 'utf8')
-    .split('\n')
-    .filter((l) => !/\/\/\s*ratchet-allow:\s*\S+/.test(l))
+  // `// ratchet-allow: <reason>` (reason required) excludes its own line and the next line from every counter.
+  const raw = readFileSync(f, 'utf8').split('\n');
+  const text = raw
+    .filter((l, i) => {
+      const allow = /\/\/\s*ratchet-allow:\s*\S+/;
+      return !allow.test(l) && !(i > 0 && allow.test(raw[i - 1] ?? ''));
+    })
     .join('\n');
   for (const [k, re] of Object.entries(COUNTERS)) {
     // renderer imports are allowed inside the renderer package itself

@@ -51,7 +51,7 @@ export default defineConfig(
       '**/coverage/**',
       '**/node_modules/**',
       '**/generated/**',
-      'storybook-static/**',
+      '**/storybook-static/**',
       '**/*.cjs',
     ],
   },
