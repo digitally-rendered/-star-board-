@@ -35,17 +35,27 @@ export function PetDetailOverride(props: PetDetailScreenProps): ReactElement {
   const SpeciesCell = useResolved<CellProps>('list.column.enum', 'pet', 'species');
   const NotesCell = useResolved<CellProps>('list.column.string', 'pet', 'notes');
   const CreatedAtCell = useResolved<CellProps>('list.column.date-time', 'pet', 'created_at');
-  if (props.status === 'loading') return <Loading {...stateProps(t('common.loading'))} />;
-  if (props.status === 'forbidden') return <Empty {...stateProps(t('common.notFound'))} />;
+  // A whole-screen override still owns the page heading: every state renders under the h1 the
+  // default screen shell would have provided (axe `page-has-heading-one` in the browser E2E).
+  const titled = (node: ReactElement): ReactElement => (
+    <section aria-labelledby="pet-detail-title">
+      <h1 id="pet-detail-title" style={{ margin: 0 }}>
+        {t('pet.screen.detail.title')}
+      </h1>
+      {node}
+    </section>
+  );
+  if (props.status === 'loading') return titled(<Loading {...stateProps(t('common.loading'))} />);
+  if (props.status === 'forbidden') return titled(<Empty {...stateProps(t('common.notFound'))} />);
   if (props.status === 'error') {
-    return (
+    return titled(
       <ErrorState
         {...stateProps(t('common.error'), props.error, retryAction(t('common.retry'), props.retry))}
-      />
+      />,
     );
   }
   const entity = props.entity;
-  if (entity === undefined) return <Empty {...stateProps(t('common.notFound'))} />;
+  if (entity === undefined) return titled(<Empty {...stateProps(t('common.notFound'))} />);
   const cells = { species: SpeciesCell, notes: NotesCell, created_at: CreatedAtCell } as const;
   const update = props.actions.find((a) => a.operationId === 'pet_update');
   const remove = props.actions.find((a) => a.operationId === 'pet_delete');

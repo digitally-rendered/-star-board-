@@ -20,7 +20,7 @@ generator as adapters around it.
 The core (`@star-board/tokens`, L1) never imports React, MUI or a Figma SDK. The Figma
 adapter is plain TypeScript over JSON in `packages/tokens/src/figma/`: the ports
 `TokenSourcePort`, `DesignFilePort` and `CodeMappingPort`, two `TokenSourcePort` adapters
-(`JsonFileTokenSource` over a file, `InMemoryTokenSource` for tests), the inverse builder
+(`JsonFileTokenSource` over a file from `@star-board/tokens/node`, `InMemoryTokenSource` for tests), the inverse builder
 `figmaVariablesToTokens`, `syncTokens` and the Code Connect emitter.
 
 ## The Figma MCP server is a build-brain tool

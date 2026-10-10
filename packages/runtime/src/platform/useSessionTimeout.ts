@@ -46,36 +46,56 @@ export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeou
   onTimeoutRef.current = onTimeout;
   const [epoch, setEpoch] = useState(0);
   const lastResetRef = useRef(0);
+  // Wall-clock deadline: timers pause while a tab sleeps, so expiry is also checked against the
+  // clock on every activity or visibility change. Expiry is terminal: `reset()` never revives it.
+  const deadlineRef = useRef(Number.POSITIVE_INFINITY);
+  const expiredRef = useRef(false);
+  const expire = useCallback(() => {
+    if (expiredRef.current) return;
+    expiredRef.current = true;
+    setState('expired');
+    onTimeoutRef.current();
+  }, []);
   const reset = useCallback(() => {
+    if (expiredRef.current) return;
     lastResetRef.current = Date.now();
+    deadlineRef.current = Date.now() + idleMs;
     setState('active');
     setEpoch((n) => n + 1);
-  }, []);
+  }, [idleMs]);
 
   useEffect(() => {
-    if (!enabled) return undefined;
-    let expired = false;
+    if (!enabled || expiredRef.current) return undefined;
+    if (deadlineRef.current === Number.POSITIVE_INFINITY) deadlineRef.current = Date.now() + idleMs;
     const warnAt = Math.max(0, idleMs - warningMs);
     const warning = setTimeout(() => {
       setState('warning');
     }, warnAt);
-    const timeout = setTimeout(() => {
-      expired = true;
-      setState('expired');
-      onTimeoutRef.current();
-    }, idleMs);
-    // Activity during the warning counts as "stay"; after expiry nothing revives the session.
-    // A burst of events (scrolling) re-arms the timer once per second at most.
-    const activity = () => {
-      if (!expired && Date.now() - lastResetRef.current >= ACTIVITY_THROTTLE_MS) reset();
+    const timeout = setTimeout(expire, idleMs);
+    // The clock decides: if the deadline passed while timers were suspended, expire now.
+    const checkClock = (): boolean => {
+      if (Date.now() >= deadlineRef.current) {
+        expire();
+        return true;
+      }
+      return false;
+    };
+    // Genuine activity re-arms the timer (once per throttle window); a tab becoming visible is not
+    // activity, it only triggers the clock check.
+    const activity = (event: Event) => {
+      if (checkClock()) return;
+      if (event.type === 'visibilitychange') return;
+      if (Date.now() - lastResetRef.current >= ACTIVITY_THROTTLE_MS) reset();
     };
     for (const name of events) window.addEventListener(name, activity, { passive: true });
+    document.addEventListener('visibilitychange', activity);
     return () => {
       clearTimeout(warning);
       clearTimeout(timeout);
       for (const name of events) window.removeEventListener(name, activity);
+      document.removeEventListener('visibilitychange', activity);
     };
-  }, [enabled, epoch, events, idleMs, reset, warningMs]);
+  }, [enabled, epoch, events, expire, idleMs, reset, warningMs]);
 
   return { state, reset };
 }

@@ -20,7 +20,11 @@ export function StatusChip(props: CellProps): ReactElement {
   return (
     <Chip
       size="small"
+      variant="outlined"
       color={STATUS_COLOR[raw] ?? 'default'}
+      // The status colour sits on the border; the label keeps the text colour so the chip meets
+      // the 4.5:1 contrast ratio on every palette slot (axe in the browser E2E checks this).
+      sx={{ color: 'text.primary', fontWeight: 500 }}
       label={label}
       data-testid="pet-status-chip"
       data-status={raw}

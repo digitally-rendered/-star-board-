@@ -7,7 +7,8 @@ import { buildFigmaVariables, type FigmaVariable } from '../build/figma-variable
 import { referenceSet } from '../fixture.test-helper.js';
 import { REFERENCE_MODES } from '../modes.js';
 import type { FigmaVariablesDocument } from './ports.js';
-import { InMemoryTokenSource, JsonFileTokenSource } from './sources.js';
+import { InMemoryTokenSource } from './sources.js';
+import { JsonFileTokenSource } from './node-sources.js';
 import { changedPaths, syncTokens } from './sync.js';
 
 async function failure(promise: Promise<unknown>): Promise<TokensError> {

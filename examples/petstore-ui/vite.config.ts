@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { loadDocument } from '@star-board/spec';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, type Plugin, defaultClientConditions } from 'vite';
 
 /** The document this app is generated from: one input, read at build time. */
 export const DOCUMENT = fileURLToPath(new URL('../../fixtures/petstore.json', import.meta.url));
@@ -31,7 +31,7 @@ export function featureModelPlugin(documentPath: string): Plugin {
 export default defineConfig({
   plugins: [react(), featureModelPlugin(DOCUMENT)],
   // Workspace packages resolve to their sources (tsconfig.base.json uses the same condition).
-  resolve: { conditions: ['star-board-source'] },
+  resolve: { conditions: ['star-board-source', ...defaultClientConditions] },
   // The msw worker script (`msw init`, a vendored file) lives under public/generated so lint skips it.
   publicDir: 'public/generated',
   server: { port: 5173 },

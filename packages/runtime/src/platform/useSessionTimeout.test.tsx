@@ -82,3 +82,51 @@ describe('useSessionTimeout', () => {
     expect(onTimeout).not.toHaveBeenCalled();
   });
 });
+
+describe('useSessionTimeout fails closed', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reset() does not revive an expired session', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() => useSessionTimeout({ idleMs: 1_000, onTimeout }));
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    expect(result.current.state).toBe('expired');
+    act(() => {
+      result.current.reset();
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('expires by wall clock when timers were suspended (tab asleep) and the tab becomes visible', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() => useSessionTimeout({ idleMs: 10_000, onTimeout }));
+    act(() => {
+      vi.setSystemTime(Date.now() + 60_000); // the clock moved; no timer fired
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('a visibility change alone is not activity and does not re-arm the timer', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() => useSessionTimeout({ idleMs: 10_000, onTimeout }));
+    act(() => {
+      vi.advanceTimersByTime(8_500);
+    });
+    expect(result.current.state).toBe('warning');
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.state).toBe('warning');
+  });
+});
