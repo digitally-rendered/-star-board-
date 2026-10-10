@@ -40,7 +40,7 @@ export function visualMatrix(
 
 /** Where a cell's baseline lives, relative to the package root. */
 export function baselinePath(cell: VisualCell): string {
-  return `visual/baselines/${cell.storyId}--${cell.mode}--${cell.density}.png`;
+  return `visual/baselines/${cell.storyId}__${cell.mode}__${cell.density}.png`;
 }
 
 /** The story iframe URL for a cell; `globals` is Storybook's `key:value;key:value` syntax. */

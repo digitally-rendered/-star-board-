@@ -53,7 +53,7 @@ describe('visualMatrix', () => {
   it('names baselines and story urls from the cell', () => {
     const cell = { storyId: 'contract-field-text--default', mode: 'dark', density: 'dense' };
     expect(baselinePath(cell)).toBe(
-      'visual/baselines/contract-field-text--default--dark--dense.png',
+      'visual/baselines/contract-field-text--default__dark__dense.png',
     );
     expect(storyUrl(cell, 'http://localhost:6006')).toBe(
       'http://localhost:6006/iframe.html?viewMode=story&id=contract-field-text--default&globals=mode%3Adark%3Bdensity%3Adense',

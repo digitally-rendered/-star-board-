@@ -48,9 +48,14 @@ prior build.
 ## Visual regression
 
 `src/visual/matrix.ts` exports `visualMatrix()`: every story × mode × density as
-`{ storyId, mode, density }`, plus `storyUrl` and `baselinePath`. `docs/VISUAL.md` describes how
-baselines are captured, stored under `visual/baselines/` and ratcheted from informational to
-strict. The capture job is task 21.
+`{ storyId, mode, density }`, plus `storyUrl` and `baselinePath`
+(`visual/baselines/<storyId>__<mode>__<density>.png`). `scripts/capture-baselines.ts` screenshots
+every cell of a built `storybook-static/` with Playwright's Chromium into `visual/baselines/`;
+`scripts/compare-baselines.ts` re-captures into a temporary directory, compares pixel by pixel
+(`scripts/visual/png.ts`, a dependency-free PNG reader) and writes `visual/report.json`. The
+baselines are committed; `src/visual/baselines.test.ts` fails when a cell has no baseline or a
+baseline has no cell. `docs/VISUAL.md` has the capture settings and the ratchet from informational
+to strict.
 
 ## Commands
 
@@ -59,7 +64,14 @@ pnpm -F @star-board/storybook storybook         # storybook dev -p 6006
 pnpm -F @star-board/storybook build-storybook   # storybook-static/
 pnpm -F @star-board/storybook generate:stories  # regenerate src/stories from the manifest
 pnpm -F @star-board/storybook test              # vitest, jsdom
+pnpm -F @star-board/storybook visual:capture    # storybook-static/ → visual/baselines/*.png
+pnpm -F @star-board/storybook visual:compare    # re-capture, diff, visual/report.json; exit 1 on a difference
+pnpm -F @star-board/storybook visual:compare --update   # accept the differences as the new baselines
 ```
+
+`visual:capture` and `visual:compare` need `pnpm build` (the matrix is read from this package's
+`dist`) and `pnpm -F @star-board/storybook build-storybook`; they build nothing themselves and
+fail with the command to run when `storybook-static/` is missing.
 
 `types/storybook.d.ts` declares the subset of the Storybook 10 API this package touches, so type
 checking passes before the Storybook packages are installed; TypeScript ignores it once the real

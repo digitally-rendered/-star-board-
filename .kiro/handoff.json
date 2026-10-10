@@ -12,10 +12,11 @@
     "08-cli",
     "09-agent-affordance",
     "10-figma-code-connect",
+    "11-storybook-visual",
     "12-examples-docs",
     "13-rules-backfill"
   ],
-  "in_progress": ["11-storybook-visual"],
+  "in_progress": [],
   "blocked": [],
   "remediation": [
     {
@@ -37,6 +38,13 @@
       "class": "B",
       "finding": "generated error state shows backend error.message (typescript/05 \u00a72 wants mapped wording)",
       "owner": "generator",
+      "status": "open"
+    },
+    {
+      "id": "R4",
+      "class": "B",
+      "finding": "dark and high-contrast stories: MUI ThemeProvider rewrites data-mode on <html> to light, so CssBaseline paints a light body while root text is light; fix in ThemeRoot or the decorator (useColorScheme/defaultMode) and re-baseline per the ratchet policy",
+      "owner": "renderer-mui, storybook",
       "status": "open"
     }
   ]

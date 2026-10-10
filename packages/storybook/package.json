@@ -27,7 +27,9 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "generate:stories": "node scripts/gen-stories.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "visual:capture": "node scripts/capture-baselines.ts",
+    "visual:compare": "node scripts/compare-baselines.ts"
   },
   "dependencies": {
     "@star-board/core": "workspace:*",
@@ -51,6 +53,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.1.2",
     "jsdom": "28.1.0",
+    "playwright": "1.64.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "storybook": "10.6.1",
