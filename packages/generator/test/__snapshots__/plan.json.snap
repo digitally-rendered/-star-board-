@@ -1,0 +1,667 @@
+{
+  "source": {
+    "title": "petstore",
+    "version": "2026.10.0"
+  },
+  "posture": "404",
+  "schemas": [
+    {
+      "name": "pet",
+      "pascal": "Pet",
+      "version": "1.0.0",
+      "idField": "entity_id",
+      "ownerField": "created_by",
+      "fields": [
+        {
+          "name": "name",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": 1,
+          "group": null,
+          "hidden": false,
+          "label": "Name",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "species",
+          "key": "field.select",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": 2,
+          "group": null,
+          "hidden": false,
+          "label": "Species",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "key": "field.select",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": 3,
+          "group": null,
+          "hidden": false,
+          "label": "Status",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": null,
+          "group": null,
+          "hidden": false,
+          "label": "Entity id",
+          "help": null,
+          "audit": true,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "record_version",
+          "key": "field.number",
+          "columnKey": "list.column.integer",
+          "required": false,
+          "order": null,
+          "group": null,
+          "hidden": false,
+          "label": "Record version",
+          "help": null,
+          "audit": true,
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "notes",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": null,
+          "group": "details",
+          "hidden": false,
+          "label": "Notes",
+          "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
+          "audit": false,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "key": "field.datetime",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": null,
+          "group": null,
+          "hidden": false,
+          "label": "Created at",
+          "help": null,
+          "audit": true,
+          "type": "string",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": null,
+          "group": null,
+          "hidden": false,
+          "label": "Created by",
+          "help": null,
+          "audit": true,
+          "type": "string",
+          "nullable": false
+        }
+      ],
+      "createFields": [
+        {
+          "name": "name",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": 1,
+          "group": null,
+          "hidden": false,
+          "label": "Name",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        {
+          "name": "species",
+          "key": "field.select",
+          "columnKey": "list.column.string",
+          "required": true,
+          "order": 2,
+          "group": null,
+          "hidden": false,
+          "label": "Species",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "dog",
+              "cat",
+              "bird"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "key": "field.select",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": 3,
+          "group": null,
+          "hidden": false,
+          "label": "Status",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "available",
+              "pending",
+              "sold"
+            ],
+            "default": "available"
+          }
+        },
+        {
+          "name": "notes",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": null,
+          "group": "details",
+          "hidden": false,
+          "label": "Notes",
+          "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "updateFields": [
+        {
+          "name": "name",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": 1,
+          "group": null,
+          "hidden": false,
+          "label": "Name",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        {
+          "name": "status",
+          "key": "field.select",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": 3,
+          "group": null,
+          "hidden": false,
+          "label": "Status",
+          "help": null,
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "available",
+              "pending",
+              "sold"
+            ]
+          }
+        },
+        {
+          "name": "notes",
+          "key": "field.text",
+          "columnKey": "list.column.string",
+          "required": false,
+          "order": null,
+          "group": "details",
+          "hidden": false,
+          "label": "Notes",
+          "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
+          "audit": false,
+          "type": "string",
+          "nullable": false,
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      ],
+      "screens": [
+        {
+          "kind": "list",
+          "key": "screen.list",
+          "operationId": "pet_list",
+          "view": null,
+          "component": "PetListScreen",
+          "file": "PetListScreen.tsx",
+          "route": "/pet",
+          "capabilities": [
+            "pet:read"
+          ],
+          "titleKey": "pet.screen.list.title"
+        },
+        {
+          "kind": "create",
+          "key": "screen.create",
+          "operationId": "pet_create",
+          "view": null,
+          "component": "PetCreateScreen",
+          "file": "PetCreateScreen.tsx",
+          "route": "/pet/new",
+          "capabilities": [
+            "pet:write"
+          ],
+          "titleKey": "pet.screen.create.title"
+        },
+        {
+          "kind": "detail",
+          "key": "screen.detail",
+          "operationId": "pet_get",
+          "view": null,
+          "component": "PetDetailScreen",
+          "file": "PetDetailScreen.tsx",
+          "route": "/pet/:id",
+          "capabilities": [
+            "pet:read"
+          ],
+          "titleKey": "pet.screen.detail.title"
+        },
+        {
+          "kind": "edit",
+          "key": "screen.edit",
+          "operationId": "pet_update",
+          "view": null,
+          "component": "PetEditScreen",
+          "file": "PetEditScreen.tsx",
+          "route": "/pet/:id/edit",
+          "capabilities": [
+            "pet:write"
+          ],
+          "titleKey": "pet.screen.edit.title"
+        },
+        {
+          "kind": "grid",
+          "key": "screen.grid",
+          "operationId": "available_pets_query",
+          "view": "available_pets",
+          "component": "PetGridScreen",
+          "file": "PetGridScreen.tsx",
+          "route": "/views/available_pets",
+          "capabilities": [
+            "pet:read"
+          ],
+          "titleKey": "pet.view.available_pets.title"
+        }
+      ],
+      "actions": [
+        {
+          "id": "pet_create",
+          "operation": "create",
+          "kind": "create",
+          "operationKind": "create",
+          "key": "action.create",
+          "method": "post",
+          "path": "/pet",
+          "params": [],
+          "capabilities": [
+            "pet:write"
+          ],
+          "hasRequest": true,
+          "hasResponse": false,
+          "mutation": true,
+          "item": false,
+          "labelKey": "pet.action.pet_create.label"
+        },
+        {
+          "id": "pet_delete",
+          "operation": "delete",
+          "kind": "delete",
+          "operationKind": "delete",
+          "key": "action.delete",
+          "method": "delete",
+          "path": "/pet/{id}",
+          "params": [
+            "id"
+          ],
+          "capabilities": [
+            "pet:delete"
+          ],
+          "hasRequest": false,
+          "hasResponse": false,
+          "mutation": true,
+          "item": true,
+          "labelKey": "pet.action.pet_delete.label"
+        },
+        {
+          "id": "pet_get",
+          "operation": "get",
+          "kind": "custom",
+          "operationKind": "get",
+          "key": "action.custom",
+          "method": "get",
+          "path": "/pet/{id}",
+          "params": [
+            "id"
+          ],
+          "capabilities": [
+            "pet:read"
+          ],
+          "hasRequest": false,
+          "hasResponse": false,
+          "mutation": false,
+          "item": true,
+          "labelKey": "pet.action.pet_get.label"
+        },
+        {
+          "id": "pet_history",
+          "operation": "history",
+          "kind": "custom",
+          "operationKind": "history",
+          "key": "action.custom",
+          "method": "get",
+          "path": "/pet/{id}/_history",
+          "params": [
+            "id"
+          ],
+          "capabilities": [
+            "pet:read"
+          ],
+          "hasRequest": false,
+          "hasResponse": false,
+          "mutation": false,
+          "item": true,
+          "labelKey": "pet.action.pet_history.label"
+        },
+        {
+          "id": "pet_list",
+          "operation": "list",
+          "kind": "custom",
+          "operationKind": "list",
+          "key": "action.custom",
+          "method": "get",
+          "path": "/pet",
+          "params": [],
+          "capabilities": [
+            "pet:read"
+          ],
+          "hasRequest": false,
+          "hasResponse": false,
+          "mutation": false,
+          "item": false,
+          "labelKey": "pet.action.pet_list.label"
+        },
+        {
+          "id": "pet_update",
+          "operation": "update",
+          "kind": "update",
+          "operationKind": "update",
+          "key": "action.update",
+          "method": "patch",
+          "path": "/pet/{id}",
+          "params": [
+            "id"
+          ],
+          "capabilities": [
+            "pet:write"
+          ],
+          "hasRequest": true,
+          "hasResponse": false,
+          "mutation": true,
+          "item": true,
+          "labelKey": "pet.action.pet_update.label"
+        }
+      ],
+      "columns": {
+        "list": [
+          {
+            "field": "name",
+            "key": "list.column.string",
+            "label": "Name",
+            "hidden": false,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "species",
+            "key": "list.column.string",
+            "label": "Species",
+            "hidden": false,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "status",
+            "key": "list.column.string",
+            "label": "Status",
+            "hidden": false,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "notes",
+            "key": "list.column.string",
+            "label": "Notes",
+            "hidden": false,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "entity_id",
+            "key": "list.column.string",
+            "label": "Entity id",
+            "hidden": true,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "record_version",
+            "key": "list.column.integer",
+            "label": "Record version",
+            "hidden": true,
+            "sortable": true,
+            "type": "integer"
+          },
+          {
+            "field": "created_at",
+            "key": "list.column.string",
+            "label": "Created at",
+            "hidden": true,
+            "sortable": true,
+            "type": "string"
+          },
+          {
+            "field": "created_by",
+            "key": "list.column.string",
+            "label": "Created by",
+            "hidden": true,
+            "sortable": true,
+            "type": "string"
+          }
+        ],
+        "views": [
+          {
+            "view": "available_pets",
+            "operationId": "available_pets_query",
+            "schema": "pet",
+            "columns": [
+              {
+                "field": "name",
+                "key": "list.column.string",
+                "label": "Name",
+                "hidden": false,
+                "sortable": true,
+                "type": "string"
+              },
+              {
+                "field": "species",
+                "key": "list.column.string",
+                "label": "Species",
+                "hidden": false,
+                "sortable": true,
+                "type": "string"
+              },
+              {
+                "field": "status",
+                "key": "list.column.string",
+                "label": "Status",
+                "hidden": false,
+                "sortable": true,
+                "type": "string"
+              }
+            ],
+            "filters": [
+              {
+                "field": "species",
+                "op": "_eq"
+              }
+            ],
+            "sort": [
+              {
+                "field": "name",
+                "dir": "asc"
+              }
+            ],
+            "limits": {
+              "default": 25,
+              "max": 100
+            },
+            "roles": [
+              "customer",
+              "staff"
+            ],
+            "titleKey": "pet.view.available_pets.title"
+          }
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "path": "/pet",
+      "schema": "pet",
+      "kind": "list",
+      "component": "PetListScreen",
+      "operationId": "pet_list",
+      "view": null
+    },
+    {
+      "path": "/pet/new",
+      "schema": "pet",
+      "kind": "create",
+      "component": "PetCreateScreen",
+      "operationId": "pet_create",
+      "view": null
+    },
+    {
+      "path": "/pet/:id",
+      "schema": "pet",
+      "kind": "detail",
+      "component": "PetDetailScreen",
+      "operationId": "pet_get",
+      "view": null
+    },
+    {
+      "path": "/pet/:id/edit",
+      "schema": "pet",
+      "kind": "edit",
+      "component": "PetEditScreen",
+      "operationId": "pet_update",
+      "view": null
+    },
+    {
+      "path": "/views/available_pets",
+      "schema": "pet",
+      "kind": "grid",
+      "component": "PetGridScreen",
+      "operationId": "available_pets_query",
+      "view": "available_pets"
+    }
+  ],
+  "nav": [
+    {
+      "schema": "pet",
+      "label": "Pet",
+      "i18nKey": "pet.nav.label",
+      "path": "/pet"
+    }
+  ],
+  "i18n": {
+    "common.back": "Back",
+    "common.cancel": "Cancel",
+    "common.empty": "Nothing here yet",
+    "common.filter": "Filter",
+    "common.loading": "Loading",
+    "common.next": "Next",
+    "common.open": "Open",
+    "common.page": "Page",
+    "common.previous": "Previous",
+    "common.save": "Save",
+    "common.sort": "Sort",
+    "common.system": "System",
+    "pet.action.pet_create.label": "Create",
+    "pet.action.pet_delete.label": "Delete",
+    "pet.action.pet_get.label": "Get",
+    "pet.action.pet_history.label": "History",
+    "pet.action.pet_list.label": "List",
+    "pet.action.pet_update.label": "Update",
+    "pet.field.created_at.label": "Created at",
+    "pet.field.created_by.label": "Created by",
+    "pet.field.entity_id.label": "Entity id",
+    "pet.field.name.label": "Name",
+    "pet.field.notes.help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
+    "pet.field.notes.label": "Notes",
+    "pet.field.record_version.label": "Record version",
+    "pet.field.species.label": "Species",
+    "pet.field.status.label": "Status",
+    "pet.group.details.label": "Details",
+    "pet.nav.label": "Pet",
+    "pet.screen.create.title": "Pet create",
+    "pet.screen.detail.title": "Pet detail",
+    "pet.screen.edit.title": "Pet edit",
+    "pet.screen.list.title": "Pet list",
+    "pet.view.available_pets.title": "Available pets"
+  }
+}

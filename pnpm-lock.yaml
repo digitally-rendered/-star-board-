@@ -193,6 +193,9 @@ importers:
       react-hook-form:
         specifier: 7.89.0
         version: 7.89.0(@types/react@19.2.14)(react@19.3.0)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@testing-library/react':
         specifier: 16.3.3
@@ -206,6 +209,9 @@ importers:
       '@types/react-dom':
         specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.14)
+      axe-core:
+        specifier: 4.14.0
+        version: 4.14.0
       jsdom:
         specifier: 28.1.0
         version: 28.1.0
@@ -215,6 +221,9 @@ importers:
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+      vitest-axe:
+        specifier: 0.1.0
+        version: 0.1.0(vitest@5.0.3)
 
   packages/runtime:
     dependencies:

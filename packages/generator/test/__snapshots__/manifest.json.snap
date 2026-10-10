@@ -1,0 +1,93 @@
+{
+  "buildVersion": "0.0.1",
+  "files": [
+    {
+      "path": "adapters/client.ts",
+      "sha256": "530a93125eb43a059193d43028ec2fb305db1de815ff69d3cb002ca3aa1d6f33"
+    },
+    {
+      "path": "adapters/paths.ts",
+      "sha256": "a190b3d9ff670d6c0b71412b23ccd186b3eb77b8a70afd034a975b60bc0102c4"
+    },
+    {
+      "path": "application/pet/usePetActions.ts",
+      "sha256": "2a2d05804ba28a103102a083352bad098ee40222538ea77cafebd4a559d3ea63"
+    },
+    {
+      "path": "application/pet/usePetScreens.ts",
+      "sha256": "845dfb9b15bd3828c2d289a8b5c710cd90edd8fc1e523009eb1ed5ce6a3922fd"
+    },
+    {
+      "path": "application/support.ts",
+      "sha256": "77d28b2e07933d04e0c7bf59d80a74e4b8ddcac08241d6fcd642a1fb4ae4a66b"
+    },
+    {
+      "path": "domain/AgentPanelSlot.tsx",
+      "sha256": "bdf4adf4ceb3be2c46a4aaac75c00748f4a8a9e1fed0736f36ff13fb3238ea61"
+    },
+    {
+      "path": "domain/contract.ts",
+      "sha256": "3c2eb018235db9579d695528ef6639384d8188b461c306ef96745033d2239ab8"
+    },
+    {
+      "path": "domain/pet/PetCreateScreen.tsx",
+      "sha256": "f1933cb3a80afc31ffa6076a033065c19156724a900cbc48f224c56fe6874f70"
+    },
+    {
+      "path": "domain/pet/PetDetailScreen.tsx",
+      "sha256": "b18e9dc297d0d11211441d59cd06bdad0f0e4665aca8fc8ee6232f78c81b1d42"
+    },
+    {
+      "path": "domain/pet/PetEditScreen.tsx",
+      "sha256": "2fe67b336f94deb9685f29570841c1af277f63026df4af482c38e3651736fa49"
+    },
+    {
+      "path": "domain/pet/PetGridScreen.tsx",
+      "sha256": "676872d2c089809c26fe129b7946eba86644732c888cecaaa7563800d1f104ae"
+    },
+    {
+      "path": "domain/pet/PetListScreen.tsx",
+      "sha256": "e19c8feae9bf2d2104226e0d77337dd89e33d1ec08e2f8b50a9c83df00304185"
+    },
+    {
+      "path": "domain/pet/schemas.ts",
+      "sha256": "b0a7fa5d1aabee25df7d4751ec8ff7e2c111ebd544c552b05c6b66b97b59a2b1"
+    },
+    {
+      "path": "domain/pet/types.ts",
+      "sha256": "925a5c5699dde55925c95180c9cdaf7eacdcf2ae29b970104f58568e6089f664"
+    },
+    {
+      "path": "i18n.defaults.json",
+      "sha256": "6118d326d2893508fd4e9b2995bc361d69e465924eb5a34ac9405772733aebcb"
+    },
+    {
+      "path": "i18n.ts",
+      "sha256": "31b8b5b41a81b8e56dc002e3ca8e1af674c1f815fa2ccc721615bb1ed5441cba"
+    },
+    {
+      "path": "index.ts",
+      "sha256": "9403dbe892cb4ec5dd852f1a6dce1778f46790138d0fec352a8f1cdc55bdaece"
+    },
+    {
+      "path": "nav.ts",
+      "sha256": "0f0243c6289809ddb4a00d137c0973c73b94a1e8aa0f7a1b2e0af60ba88cf86d"
+    },
+    {
+      "path": "registry.ts",
+      "sha256": "bb0137e8f4495a19aab46e6a0b5cbde6ecc9b6e75be940bef2deb7e6c8f415d6"
+    },
+    {
+      "path": "routes.tsx",
+      "sha256": "98e1160711d151e10fdf7ac7dd8b10860dcff6d3d8309fe3e882ad2cfdb84eab"
+    },
+    {
+      "path": "setup.ts",
+      "sha256": "17d6d9190cec71b94f30ef08bb32cb32a2af78607220f0cd45be10a48a5992fd"
+    }
+  ],
+  "source": {
+    "title": "petstore",
+    "version": "2026.10.0"
+  }
+}

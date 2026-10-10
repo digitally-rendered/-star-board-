@@ -28,8 +28,13 @@
   },
   "dependencies": {
     "@star-board/core": "workspace:*",
-    "@star-board/spec": "workspace:*",
-    "openapi-typescript": "7.13.0"
+    "@star-board/spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "fast-check": "4.10.2",
+    "typescript": "5.9.3",
+    "zod": "4.6.5"
   },
   "star-board": {
     "layer": "L4"
