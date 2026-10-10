@@ -1,12 +1,17 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { FeatureModel } from '@star-board/core';
-import type { HttpClient } from '../client/createClient.js';
+import type { Client } from 'openapi-fetch';
+import type { UntypedPaths } from '../client/createClient.js';
 import { createOperationsPort, type OperationsPort } from '../data/operations.js';
 import type { AgentPort, AuthPort, NotifyPort } from '../ports.js';
 
-/** Everything a consuming app wires once (plan Part 3): the client and the ports. */
-export interface Services {
-  client: HttpClient;
+/**
+ * Everything a consuming app wires once (plan Part 3): the client and the ports. `Paths` is the
+ * generated `paths` type of the typed client; the runtime itself only calls the client by path
+ * string, so inside the runtime services are read as `Services` (untyped paths).
+ */
+export interface Services<Paths extends object = UntypedPaths> {
+  client: Client<Paths>;
   auth: AuthPort;
   notify: NotifyPort;
   agent?: AgentPort;
@@ -19,10 +24,14 @@ export interface Services {
 const ServicesContext = createContext<Services | null>(null);
 
 /** Puts the adapters in context once (typescript/05 §1); hooks never construct one. */
-export function ServicesProvider(props: { services: Services; children?: ReactNode }) {
-  return (
-    <ServicesContext.Provider value={props.services}>{props.children}</ServicesContext.Provider>
-  );
+export function ServicesProvider<Paths extends object = UntypedPaths>(props: {
+  services: Services<Paths>;
+  children?: ReactNode;
+}) {
+  // The runtime addresses the client by path string only; a typed client is a narrower view of
+  // the same object, so erasing `Paths` here is sound and lets generated clients plug in.
+  const services = props.services as unknown as Services;
+  return <ServicesContext.Provider value={services}>{props.children}</ServicesContext.Provider>;
 }
 
 export function useServices(): Services {

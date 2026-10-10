@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { FeatureModelSchema, REQUIRED_EXTENSIONS, type FeatureModel } from '@star-board/core';
 import { collectOperations } from './operations.js';
 import { collectSchemas } from './schemas.js';
@@ -73,16 +71,36 @@ function readDocument(src: string | object): JsonObject {
       : parseJson(readText(src), src);
   }
   if (src instanceof URL) {
-    const path = fileURLToPath(src);
+    if (src.protocol !== 'file:')
+      throw invalid(`Only file: URLs are read; got ${src.protocol}`, { at: src.href });
+    const path = decodeURIComponent(src.pathname);
     return parseJson(readText(path), path);
   }
   if (!isRecord(src)) throw invalid('Expected an OpenAPI document object', { at: '' });
   return src;
 }
 
+interface NodeFs {
+  readFileSync(path: string, encoding: 'utf8'): string;
+}
+interface NodeProcess {
+  getBuiltinModule?(id: string): unknown;
+}
+
+/**
+ * Reads a document from disk through `process.getBuiltinModule` (Node ≥ 22.3) so this module has
+ * no static node built-in import and a browser bundle can call `loadDocument` with a parsed object.
+ */
 function readText(path: string): string {
+  const proc = (globalThis as { process?: NodeProcess }).process;
+  const fs = proc?.getBuiltinModule?.('node:fs') as NodeFs | undefined;
+  if (fs === undefined) {
+    throw invalid('Reading a document from a path needs Node; pass a parsed object instead', {
+      path,
+    });
+  }
   try {
-    return readFileSync(path, 'utf8');
+    return fs.readFileSync(path, 'utf8');
   } catch (cause) {
     throw invalid(`Cannot read OpenAPI document at ${path}`, { path }, { cause });
   }
