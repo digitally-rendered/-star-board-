@@ -167,14 +167,18 @@ describe('McpAgentPort', () => {
   });
 
   it('apply calls the operation tool itself and sends ifMatch in _meta', async () => {
-    const { port, calls } = make({ pet_update: text({ id: '1', version: 2 }) });
+    const { port, calls } = make({
+      pet_update: text({ id: '1', version: 2 }),
+      pet_create: text({ id: '2', version: 1 }),
+    });
     expect(await port.apply('pet_update', { id: '1' }, 'W/"1"')).toEqual({ id: '1', version: 2 });
     expect(calls[0]).toEqual({
       method: 'tools/call',
       params: { name: 'pet_update', arguments: { id: '1' }, _meta: { ifMatch: 'W/"1"' } },
     });
-    await port.apply('pet_update', { id: '1' }, 'W/"1"');
-    expect(calls[1]?.params).toEqual({ name: 'pet_update', arguments: { id: '1' } });
+    // A non-versioned operation needs no If-Match and sends no _meta.
+    await port.apply('pet_create', { name: 'Rex' });
+    expect(calls[1]?.params).toEqual({ name: 'pet_create', arguments: { name: 'Rex' } });
   });
 
   it('records one audit row per call with the args hash, principal, kind and outcome', async () => {
