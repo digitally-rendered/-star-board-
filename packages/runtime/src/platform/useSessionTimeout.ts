@@ -49,6 +49,7 @@ export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeou
   // Wall-clock deadline: timers pause while a tab sleeps, so expiry is also checked against the
   // clock on every activity or visibility change. Expiry is terminal: `reset()` never revives it.
   const deadlineRef = useRef(Number.POSITIVE_INFINITY);
+  // Disabling the guard is explicit (`enabled: false`); it never happens by drift.
   const expiredRef = useRef(false);
   const expire = useCallback(() => {
     if (expiredRef.current) return;
@@ -66,7 +67,9 @@ export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeou
 
   useEffect(() => {
     if (!enabled || expiredRef.current) return undefined;
-    if (deadlineRef.current === Number.POSITIVE_INFINITY) deadlineRef.current = Date.now() + idleMs;
+    // Every arm (mount, reset, a changed idle limit, re-enable) sets the deadline the timers
+    // below are counting towards, so the clock check and the timers can never disagree.
+    deadlineRef.current = Date.now() + idleMs;
     const warnAt = Math.max(0, idleMs - warningMs);
     const warning = setTimeout(() => {
       setState('warning');

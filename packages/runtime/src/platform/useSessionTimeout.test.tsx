@@ -129,4 +129,49 @@ describe('useSessionTimeout fails closed', () => {
     });
     expect(result.current.state).toBe('warning');
   });
+
+  it('a shorter idle limit moves the deadline with the timers (no drift between clock and timer)', () => {
+    const onTimeout = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ idleMs }: { idleMs: number }) => useSessionTimeout({ idleMs, onTimeout }),
+      {
+        initialProps: { idleMs: 60_000 },
+      },
+    );
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    rerender({ idleMs: 10_000 });
+    act(() => {
+      vi.setSystemTime(Date.now() + 10_000); // the new limit elapsed on the clock, timers suspended
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-enabling re-arms from now rather than from a stale deadline', () => {
+    const onTimeout = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) =>
+        useSessionTimeout({ idleMs: 10_000, onTimeout, enabled }),
+      {
+        initialProps: { enabled: true },
+      },
+    );
+    rerender({ enabled: false });
+    act(() => {
+      vi.setSystemTime(Date.now() + 60_000);
+    });
+    rerender({ enabled: true });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(result.current.state).toBe('active');
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
 });
