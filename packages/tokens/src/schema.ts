@@ -59,6 +59,17 @@ export interface TokenIssue {
 export const MAX_ALIAS_DEPTH = 8;
 export const ALIAS_PATTERN = /^\{([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)\}$/;
 const NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
+/** Keys that would reach Object.prototype when a path is materialised; never valid token or group names. */
+export const FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+/** A font family name: letters, digits, spaces, hyphens, underscores and dots; this value is emitted into CSS. */
+const FONT_FAMILY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
+export function isSafeKey(key: string): boolean {
+  return NAME_PATTERN.test(key) && !FORBIDDEN_KEYS.has(key);
+}
 const COLOR_PATTERN = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 const DIMENSION_PATTERN = /^-?(?:\d+|\d*\.\d+)(?:px|rem)$/;
 const DURATION_PATTERN = /^(?:\d+|\d*\.\d+)ms$/;
@@ -126,9 +137,10 @@ function describeLiteral(type: TokenType, value: unknown): string | undefined {
         ? undefined
         : 'a dimension is a number with a px or rem unit';
     case 'fontFamily':
-      return typeof value === 'string' || isStringArray(value)
+      return (typeof value === 'string' && FONT_FAMILY_PATTERN.test(value)) ||
+        (isStringArray(value) && value.every((v) => FONT_FAMILY_PATTERN.test(v)))
         ? undefined
-        : 'a fontFamily is a string or a non-empty string array';
+        : 'a fontFamily is a font name (letters, digits, space, - _ .) or a non-empty array of them';
     case 'number':
       return typeof value === 'number' && Number.isFinite(value)
         ? undefined
@@ -186,7 +198,7 @@ function readModes(
     return modes;
   }
   for (const mode of Object.keys(declared).sort()) {
-    if (!NAME_PATTERN.test(mode)) {
+    if (!isSafeKey(mode)) {
       walk.issues.push({ path, message: `invalid mode name '${mode}'` });
       continue;
     }
@@ -248,7 +260,7 @@ function walkNode(
 
   for (const key of Object.keys(node).sort()) {
     if (key.startsWith('$')) continue;
-    if (!NAME_PATTERN.test(key)) {
+    if (!isSafeKey(key)) {
       walk.issues.push({
         path: [...segments, key].join('.'),
         message: `invalid name '${key}'; names use letters, digits, '_' and '-'`,

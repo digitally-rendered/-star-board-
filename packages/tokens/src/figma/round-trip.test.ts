@@ -4,6 +4,7 @@ import { buildFigmaVariables } from '../build/figma-variables.js';
 import { color, expectTokensInvalid, referenceSet } from '../fixture.test-helper.js';
 import { REFERENCE_MODES } from '../modes.js';
 import { parseTokens } from '../schema.js';
+import { TokensError } from '@star-board/core';
 import {
   figmaVariablesToTokenJson,
   figmaVariablesToTokens,
@@ -202,5 +203,43 @@ describe('parseFigmaVariables', () => {
       'duplicate variable name',
       'modes must be a non-empty list of distinct mode names',
     ]);
+  });
+});
+
+describe('untrusted Figma documents', () => {
+  it('rejects variable names that would pollute the prototype chain', () => {
+    const doc = {
+      collections: [
+        {
+          name: 'star-board',
+          modes: ['light'],
+          variables: [
+            { name: '__proto__/polluted', type: 'COLOR', valuesByMode: { light: '#ffffff' } },
+          ],
+        },
+      ],
+    };
+    expect(() => parseFigmaVariables(doc)).toThrow(TokensError);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+  it('rejects a font family that could break out of a CSS declaration', () => {
+    const doc = {
+      collections: [
+        {
+          name: 'star-board-density',
+          modes: ['default'],
+          variables: [
+            {
+              name: 'font/body',
+              type: 'STRING',
+              valuesByMode: { default: 'Inter;}body{display:none' },
+            },
+          ],
+        },
+      ],
+    };
+    expect(() =>
+      figmaVariablesToTokens(parseFigmaVariables(doc), { types: { 'font.body': 'fontFamily' } }),
+    ).toThrow(TokensError);
   });
 });

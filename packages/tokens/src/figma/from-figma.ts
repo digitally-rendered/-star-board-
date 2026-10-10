@@ -11,6 +11,7 @@ import {
 import {
   invalid,
   parseTokens,
+  isSafeKey,
   TOKEN_TYPES,
   type ShadowValue,
   type TokenIssue,
@@ -78,6 +79,13 @@ function readVariable(
   const { name, type, valuesByMode } = value;
   if (typeof name !== 'string' || !VARIABLE_NAME.test(name)) {
     issues.push({ path: where, message: `invalid variable name ${JSON.stringify(name)}` });
+    return undefined;
+  }
+  if (!name.split('/').every((segment) => isSafeKey(segment))) {
+    issues.push({
+      path: where + name,
+      message: 'variable name segments must never be __proto__, constructor or prototype',
+    });
     return undefined;
   }
   const path = where + name;
@@ -305,13 +313,16 @@ function authoredFrom(
 
 function setDeep(root: Record<string, unknown>, path: string, leaf: Record<string, unknown>): void {
   const segments = path.split('.');
+  if (!segments.every((segment) => isSafeKey(segment))) {
+    throw invalid(`unsafe token path ${path}`, [{ path, message: 'forbidden path segment' }]);
+  }
   let node = root;
   for (const segment of segments.slice(0, -1)) {
     const next = node[segment];
     if (isRecord(next)) {
       node = next;
     } else {
-      const fresh: Record<string, unknown> = {};
+      const fresh: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
       node[segment] = fresh;
       node = fresh;
     }
@@ -364,7 +375,7 @@ export function figmaVariablesToTokenJson(
   if (issues.length > 0) {
     throw invalid(`Figma variables cannot become tokens: ${issues.length} issue(s)`, issues);
   }
-  const root: Record<string, unknown> = {};
+  const root: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const path of [...authored.keys()].sort()) {
     const token = authored.get(path);
     if (token === undefined) continue;
