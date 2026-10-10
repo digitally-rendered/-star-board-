@@ -181,6 +181,30 @@ describe('AgentPanel (screen.custom / agent-panel)', () => {
     });
   });
 
+  it('renders a citation as a link only for http(s) refs', async () => {
+    const { port } = stubAgent({
+      ...okResults,
+      why_pet_update: text({
+        rationale: 'r',
+        citations: [
+          { label: 'Safe', ref: 'https://example.test/doc' },
+          { label: 'Script', ref: 'javascript:alert(1)' },
+          { label: 'Relative', ref: '/local/path' },
+        ],
+      }),
+    });
+    wrap(
+      services(port),
+      <AgentPanel operationId="pet_update" args={{ id: 'x1' }} ifMatch='W/"1"' />,
+    );
+    await userEvent.click(await screen.findByTestId('agent-explain'));
+    const safe = await screen.findByTestId('agent-citation-0');
+    expect(safe.tagName).toBe('A');
+    expect(safe.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(screen.getByTestId('agent-citation-1').tagName).not.toBe('A');
+    expect(screen.getByTestId('agent-citation-2').tagName).not.toBe('A');
+  });
+
   it('collapses and expands', async () => {
     const { container } = render(
       <AgentPanelView

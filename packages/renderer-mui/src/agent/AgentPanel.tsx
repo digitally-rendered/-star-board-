@@ -25,6 +25,16 @@ import {
 } from '@star-board/runtime';
 import { useText } from '../i18n.js';
 
+/** Citation refs come from a tool response: only http(s) URLs become links; anything else is text. */
+function isSafeHref(ref: string): boolean {
+  try {
+    const url = new URL(ref, 'https://invalid.local/');
+    return (url.protocol === 'https:' || url.protocol === 'http:') && /^https?:\/\//i.test(ref);
+  } catch {
+    return false;
+  }
+}
+
 /** The `screen.custom` target the generated `AgentPanelSlot` resolves. */
 export const AGENT_PANEL_TARGET = 'agent-panel' as const;
 
@@ -238,9 +248,20 @@ export function AgentPanelView(props: AgentPanelViewProps): ReactElement {
                 <List dense aria-label={t('agent.citations')}>
                   {props.why.citations.map((citation, index) => (
                     <ListItem key={`${citation.ref}-${index}`} disableGutters>
-                      <Link href={citation.ref} data-testid={agentTestId(`citation-${index}`)}>
-                        {citation.label}
-                      </Link>
+                      {isSafeHref(citation.ref) ? (
+                        <Link
+                          href={citation.ref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-testid={agentTestId(`citation-${index}`)}
+                        >
+                          {citation.label}
+                        </Link>
+                      ) : (
+                        <Typography component="span" data-testid={agentTestId(`citation-${index}`)}>
+                          {citation.label} ({citation.ref})
+                        </Typography>
+                      )}
                     </ListItem>
                   ))}
                 </List>

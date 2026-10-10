@@ -13,6 +13,8 @@ import {
 } from './types.js';
 
 export interface McpAgentPortOptions {
+  /** Operation ids that are versioned mutations beyond the `_update` / `_delete` naming rule; `apply` without `ifMatch` fails closed for them. */
+  versionedOperations?: readonly string[];
   /** The delegating user recorded on every audit row; defaults to unknown. */
   principal?: () => string | null;
   log?: AgentAuditLog;
@@ -117,6 +119,7 @@ export class McpAgentPort implements AgentAffordancePort {
   private readonly log: AgentAuditLog;
   private readonly principal: () => string | null;
   private readonly now: () => Date;
+  private readonly versioned: ReadonlySet<string>;
 
   constructor(
     private readonly transport: McpTransport,
@@ -125,6 +128,7 @@ export class McpAgentPort implements AgentAffordancePort {
     this.log = options.log ?? new AgentAuditLog();
     this.principal = options.principal ?? (() => null);
     this.now = options.now ?? (() => new Date());
+    this.versioned = new Set(options.versionedOperations ?? []);
   }
 
   async listTools(): Promise<{ name: string }[]> {
@@ -147,8 +151,25 @@ export class McpAgentPort implements AgentAffordancePort {
     return toSimulateResult(await this.invoke('simulate', simulateToolName(operationId), args));
   }
 
+  /**
+   * Applies the operation's own tool. A versioned mutation (`<schema>_update`, `<schema>_delete`,
+   * or any id listed in `options.versionedOperations`) MUST carry `ifMatch`; without it the agent
+   * could overwrite a newer record that the UI path (`useMutation`) would have rejected with 412.
+   */
   apply(operationId: string, args: unknown, ifMatch?: string): Promise<unknown> {
+    if (ifMatch === undefined && this.isVersioned(operationId)) {
+      return Promise.reject(
+        new AgentToolError(
+          operationId,
+          `apply(${operationId}) requires ifMatch: versioned mutations fail closed`,
+        ),
+      );
+    }
     return this.invoke('apply', operationId, args, ifMatch);
+  }
+
+  private isVersioned(operationId: string): boolean {
+    return this.versioned.has(operationId) || /_(update|delete)$/.test(operationId);
   }
 
   audit(): readonly AuditRow[] {

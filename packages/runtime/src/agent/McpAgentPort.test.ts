@@ -156,6 +156,16 @@ describe('McpAgentPort', () => {
     expect((calls[0]?.params as { name: string }).name).toBe('simulate_pet_update');
   });
 
+  it('apply fails closed on a versioned mutation without ifMatch and never calls the tool', async () => {
+    const transport = { request: vi.fn() };
+    const port = new McpAgentPort(transport, { versionedOperations: ['pet_archive'] });
+    await expect(port.apply('pet_update', { name: 'x' })).rejects.toThrow(/requires ifMatch/);
+    await expect(port.apply('pet_delete', {})).rejects.toThrow(/requires ifMatch/);
+    await expect(port.apply('pet_archive', {})).rejects.toThrow(/requires ifMatch/);
+    expect(transport.request).not.toHaveBeenCalled();
+    expect(port.audit()).toHaveLength(0);
+  });
+
   it('apply calls the operation tool itself and sends ifMatch in _meta', async () => {
     const { port, calls } = make({ pet_update: text({ id: '1', version: 2 }) });
     expect(await port.apply('pet_update', { id: '1' }, 'W/"1"')).toEqual({ id: '1', version: 2 });
@@ -163,7 +173,7 @@ describe('McpAgentPort', () => {
       method: 'tools/call',
       params: { name: 'pet_update', arguments: { id: '1' }, _meta: { ifMatch: 'W/"1"' } },
     });
-    await port.apply('pet_update', { id: '1' });
+    await port.apply('pet_update', { id: '1' }, 'W/"1"');
     expect(calls[1]?.params).toEqual({ name: 'pet_update', arguments: { id: '1' } });
   });
 
@@ -175,7 +185,9 @@ describe('McpAgentPort', () => {
     });
     await port.why('pet_update', { id: '1' });
     await port.simulate('pet_update', { id: '1' });
-    await expect(port.apply('pet_update', { id: '1' })).rejects.toThrow('version conflict');
+    await expect(port.apply('pet_update', { id: '1' }, 'W/"1"')).rejects.toThrow(
+      'version conflict',
+    );
     await expect(port.call('missing', {})).rejects.toThrow(/no such tool/);
     const hash = argsHash({ id: '1' });
     expect(port.audit()).toEqual([
