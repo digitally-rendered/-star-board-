@@ -21,12 +21,17 @@ async function axeClean(page: Page): Promise<void> {
 async function selectOption(page: Page, field: string, value: string): Promise<void> {
   await page.getByTestId(`field-${field}`).getByRole('combobox').click();
   await page.getByTestId(`field-${field}-option-${value}`).click();
-  // The menu must be gone before the next step runs axe over the page.
-  await expect(page.getByRole('listbox')).toBeHidden();
+  // The menu must be detached (not merely hidden mid-exit) before the next step runs axe.
+  await expect(page.getByRole('listbox')).toHaveCount(0);
 }
+
+/** Test-only: MUI transitions end immediately, so axe never measures a fading element. */
+const NO_MOTION =
+  '*, *::before, *::after { transition: none !important; animation: none !important; }';
 
 test('petstore workflow with zero backend', async ({ page }) => {
   await page.goto('/pet');
+  await page.addStyleTag({ content: NO_MOTION });
   await expect(page.getByTestId('pet-list-table')).toBeVisible();
   await axeClean(page);
 
