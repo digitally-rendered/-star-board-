@@ -257,7 +257,7 @@ describe('star-board run()', () => {
       expect(app).toContain("from './generated/setup'");
       expect(app).toContain("from './generated/routes'");
       expect(readFileSync(join(target, 'src', 'features', 'README.md'), 'utf8')).toContain(
-        'registerComponent',
+        'registry.register',
       );
 
       writeFileSync(join(target, 'src', 'App.tsx'), 'mine\n');

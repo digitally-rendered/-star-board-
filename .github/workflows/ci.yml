@@ -18,6 +18,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm format:check
+      - run: pnpm build
+      - run: pnpm codegen:check
   test:
     runs-on: ubuntu-latest
     strategy:

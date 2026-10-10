@@ -90,7 +90,7 @@ fails on a hand edit. Everything hand-written lives here, one folder per schema:
 src/features/<schema>/
 ├── components/   React components that replace a generated screen, field, column, action or state
 ├── hooks/        application hooks the components need
-└── index.ts      registerComponent calls only
+└── index.ts      registry.register(...) calls only
 \`\`\`
 
 ## Overriding
@@ -106,7 +106,7 @@ import type { ComponentRegistry } from '@star-board/core';
 import { MySchemaListScreen } from './components/MySchemaListScreen';
 
 export function registerMySchemaOverrides(registry: ComponentRegistry): void {
-  registry.registerComponent({
+  registry.register({
     key: 'screen.list',
     schema: '<schema>',
     target: '<schema>_list',
@@ -145,10 +145,19 @@ export function App() {
   // The renderer defaults first, then the generated screens; register overrides from
   // src/features/<schema>/index.ts here, after createGeneratedRegistry().
   const registry = useMemo(() => createGeneratedRegistry(), []);
+  const auth = useMemo(
+    () => ({
+      getToken: () => Promise.resolve<string | null>(null),
+      getPrincipal: () => null,
+      onUnauthorized: () => undefined,
+    }),
+    [],
+  );
   const services = useMemo(
     () => ({
-      client: createClient(BASE_URL, { token: () => null }),
-      auth: { principal: () => null, capabilities: () => [] },
+      // AuthPort and NotifyPort from @star-board/runtime; replace with the app's adapters.
+      client: createClient(BASE_URL, auth),
+      auth,
       notify: { notify: () => undefined },
     }),
     [],

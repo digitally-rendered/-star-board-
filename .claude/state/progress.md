@@ -1,6 +1,6 @@
 # Progress — star-board
 
-**Last updated:** 2026-10-09 — Phase A, scaffold session.
+**Last updated:** 2026-10-10 — Phase E (docs, platform rules) in progress; HARD GATE 1 passed.
 
 ## Session checkpoint
 
