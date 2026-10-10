@@ -11,7 +11,7 @@ import {
 } from './emit/app.js';
 import { emitClient, emitPaths } from './emit/client.js';
 import { emitActions, emitApplicationSupport, emitScreenHooks } from './emit/hooks.js';
-import { emitAgentPanelSlot, emitContract, emitScreen } from './emit/screens.js';
+import { emitAgentPanelSlot, emitColumns, emitContract, emitScreen } from './emit/screens.js';
 import { stableJson, type GeneratedFile } from './emit/support.js';
 import { emitTypes } from './emit/types.js';
 import { emitZod } from './emit/zod.js';
@@ -56,16 +56,21 @@ export function emitAll(
 ): GeneratedFile[] {
   const source = generationPlan.source;
   const withI18n = opts.i18n ?? true;
+  const renderer = opts.renderer ?? DEFAULT_RENDERER;
   const files: GeneratedFile[] = [
-    emitContract(source),
-    emitAgentPanelSlot(source),
+    emitContract(source, renderer),
+    emitAgentPanelSlot(source, renderer),
     emitApplicationSupport(source),
   ];
   for (const schema of generationPlan.schemas) {
     const entry = model.schemas[schema.name];
     if (entry === undefined) continue;
     const variants = { document: entry.document, create: entry.create, update: entry.update };
-    files.push(emitTypes(schema, variants, source), emitZod(schema, variants, source));
+    files.push(
+      emitTypes(schema, variants, source),
+      emitZod(schema, variants, source),
+      emitColumns(generationPlan, schema, source),
+    );
     const seen = new Set<string>();
     for (const screen of schema.screens) {
       if (seen.has(screen.file)) continue;
@@ -80,7 +85,7 @@ export function emitAll(
     emitRegistry(generationPlan, source),
     emitRoutes(generationPlan, source),
     emitNav(generationPlan, source),
-    emitSetup(opts.renderer ?? DEFAULT_RENDERER, source),
+    emitSetup(renderer, source),
     emitI18n(generationPlan, source, withI18n),
   );
   if (withI18n) files.push(emitI18nJson(generationPlan));

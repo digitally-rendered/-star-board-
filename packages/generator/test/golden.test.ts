@@ -67,7 +67,9 @@ describe('golden output for fixtures/petstore.json', () => {
   it('hides the action when the capability is missing and keeps screens off fetching', () => {
     const screens = file(files, 'application/pet/usePetScreens.ts');
     expect(screens).toContain('if (can.pet_create) actions.push(');
-    expect(screens).toContain('if (can.pet_delete) actions.push(');
+    expect(screens).toContain('if (can.pet_delete) {');
+    expect(screens).toContain('.mutateAsync({ id, doc: versionedOf(entity) })');
+    expect(screens).toContain('ifMatch: etagFor(entity),');
     for (const f of files.filter((g) => g.path.startsWith('domain/'))) {
       expect(f.contents, f.path).not.toMatch(/useEntity|useEntityList|useView|useMutation|fetch\(/);
     }
@@ -127,7 +129,9 @@ describe('Tier 3 operations', () => {
     const actions = file(files, 'application/pet/usePetActions.ts');
     expect(actions).toContain('export function usePetAdopt()');
     expect(actions).toContain('export function usePetRename()');
-    expect(actions).toContain("body: operations['pet_rename']['body'];");
+    expect(actions).toContain(
+      "useMutation<operations['pet_rename']['body'], operations['pet_rename']['response']>('pet_rename')",
+    );
     expect(actions).not.toContain('usePetOwner()');
     expect(file(files, 'registry.ts')).toContain(
       "key: 'screen.custom', schema: 'pet', target: 'pet_adopt'",
@@ -139,7 +143,7 @@ describe('Tier 3 operations', () => {
       "if (can.pet_adopt) actions.push({ operationId: 'pet_adopt'",
     );
     expect(file(files, 'domain/pet/PetDetailScreen.tsx')).toContain(
-      "useComponent<ActionProps>('action.custom', 'pet', 'pet_adopt')",
+      "useResolved<ActionProps>('action.custom', 'pet', 'pet_adopt')",
     );
   });
 });

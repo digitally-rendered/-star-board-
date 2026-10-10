@@ -4,14 +4,15 @@ import { useEntity, useEntityList, useView } from '@star-board/runtime';
 import { t } from '../../i18n.js';
 import type { operations } from '../../adapters/paths.js';
 import type { ActionProps } from '../../domain/contract.js';
-import { PET_LIST_COLUMNS, type PetListScreenProps } from '../../domain/pet/PetListScreen.js';
-import { type PetCreateScreenProps } from '../../domain/pet/PetCreateScreen.js';
-import { type PetDetailScreenProps } from '../../domain/pet/PetDetailScreen.js';
-import { type PetEditScreenProps } from '../../domain/pet/PetEditScreen.js';
-import { AVAILABLE_PETS_COLUMNS, type PetGridScreenProps } from '../../domain/pet/PetGridScreen.js';
+import { AVAILABLE_PETS_COLUMNS, PET_LIST_COLUMNS } from '../../domain/pet/columns.js';
+import type { PetListScreenProps } from '../../domain/pet/PetListScreen.js';
+import type { PetCreateScreenProps } from '../../domain/pet/PetCreateScreen.js';
+import type { PetDetailScreenProps } from '../../domain/pet/PetDetailScreen.js';
+import type { PetEditScreenProps } from '../../domain/pet/PetEditScreen.js';
+import type { PetGridScreenProps } from '../../domain/pet/PetGridScreen.js';
 import { PetCreateSchema, PetUpdateSchema } from '../../domain/pet/schemas.js';
 import type { Pet, PetCreate, PetId, PetUpdate, PetAvailablePetsRow } from '../../domain/pet/types.js';
-import { fieldErrors, messageOf, statusOf, useListState } from '../support.js';
+import { etagFor, fieldErrors, messageOf, serverFieldErrors, statusOf, useListState, versionedOf } from '../support.js';
 import { usePetCapabilities, usePetCreate, usePetDelete, usePetUpdate } from './usePetActions.js';
 
 export interface PetListCallbacks {
@@ -30,12 +31,15 @@ export function usePetListScreen(callbacks: PetListCallbacks): PetListScreenProp
     error: messageOf(result.error),
     rows: result.data?.items ?? [],
     columns: PET_LIST_COLUMNS,
-    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? 0 },
+    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? result.data?.items.length ?? 0 },
     sort: list.sort,
     filters: list.filters,
     onPage: list.setPage,
     onSort: list.setSort,
     onFilter: list.setFilter,
+    retry: () => {
+      void result.refetch();
+    },
     actions,
     onOpen: callbacks.onOpen,
   };
@@ -44,6 +48,8 @@ export function usePetListScreen(callbacks: PetListCallbacks): PetListScreenProp
 export interface PetCreateCallbacks {
   onCreated: (created: operations['pet_create']['response']) => void;
   onCancel: () => void;
+  /** After the agent applied the create (shared/13 §4); omitted, the form stays put. */
+  onAgentApplied?: (result: unknown) => void;
 }
 
 export function usePetCreateScreen(callbacks: PetCreateCallbacks): PetCreateScreenProps {
@@ -53,7 +59,7 @@ export function usePetCreateScreen(callbacks: PetCreateCallbacks): PetCreateScre
   return {
     values,
     errors,
-    pending: create.isPending,
+    pending: create.loading,
     submitError: messageOf(create.error),
     onChange: (field, value) => {
       setValues((previous) => ({ ...previous, [field]: value }));
@@ -65,9 +71,12 @@ export function usePetCreateScreen(callbacks: PetCreateCallbacks): PetCreateScre
         return;
       }
       setErrors({});
-      void create.mutate({ body: parsed.data }).then(callbacks.onCreated);
+      create.mutateAsync({ body: parsed.data }).then(callbacks.onCreated, (error: unknown) => {
+        setErrors(serverFieldErrors(error));
+      });
     },
     onCancel: callbacks.onCancel,
+    onAgentApplied: callbacks.onAgentApplied,
   };
 }
 
@@ -81,14 +90,28 @@ export function usePetDetailScreen(id: PetId, callbacks: PetDetailCallbacks): Pe
   const can = usePetCapabilities();
   const result = useEntity<Pet>('pet', id);
   const remove = usePetDelete();
+  const entity = result.data;
   const actions: ActionProps[] = [];
   if (can.pet_update) actions.push({ operationId: 'pet_update', label: t('pet.action.pet_update.label'), disabled: false, onClick: () => { callbacks.onEdit(id); } });
-  if (can.pet_delete) actions.push({ operationId: 'pet_delete', label: t('pet.action.pet_delete.label'), disabled: remove.isPending, onClick: () => { void remove.mutate({ id }).then(() => { callbacks.onDeleted(); }); } });
+  if (can.pet_delete) {
+    actions.push({ operationId: 'pet_delete', label: t('pet.action.pet_delete.label'), disabled: remove.loading || entity === undefined, onClick: () =>
+        entity === undefined
+          ? undefined
+          : remove
+              .mutateAsync({ id, doc: versionedOf(entity) })
+              .then(() => {
+                callbacks.onDeleted();
+              })
+              .catch(() => undefined) });
+  }
   return {
     status: statusOf(result, can.pet_get),
     error: messageOf(result.error) ?? messageOf(remove.error),
-    entity: result.data,
+    entity,
     actions,
+    retry: () => {
+      void result.refetch();
+    },
     onBack: callbacks.onBack,
   };
 }
@@ -109,28 +132,43 @@ export function usePetEditScreen(id: PetId, callbacks: PetEditCallbacks): PetEdi
   const update = usePetUpdate();
   const [edits, setEdits] = useState<Partial<PetUpdate>>({});
   const [errors, setErrors] = useState<Partial<Record<keyof PetUpdate, string>>>({});
-  const values: Partial<PetUpdate> = { ...(result.data === undefined ? {} : toPetUpdate(result.data)), ...edits };
+  const entity = result.data;
+  const values: Partial<PetUpdate> = { ...(entity === undefined ? {} : toPetUpdate(entity)), ...edits };
   return {
     status: statusOf(result, can.pet_update),
     error: messageOf(result.error),
-    entity: result.data,
+    entity,
+    // The agent applies an update only with the If-Match of the document the user is editing.
+    ifMatch: etagFor(entity),
     values,
     errors,
-    pending: update.isPending,
+    pending: update.loading,
     submitError: messageOf(update.error),
     onChange: (field, value) => {
       setEdits((previous) => ({ ...previous, [field]: value }));
     },
     onSubmit: () => {
+      if (entity === undefined) return;
       const parsed = PetUpdateSchema.safeParse(values);
       if (!parsed.success) {
         setErrors(fieldErrors(parsed.error.issues));
         return;
       }
       setErrors({});
-      void update.mutate({ id, body: parsed.data }).then(callbacks.onSaved);
+      update
+        .mutateAsync({ id, body: parsed.data, doc: versionedOf(entity) })
+        .then(callbacks.onSaved, (error: unknown) => {
+          setErrors(serverFieldErrors(error));
+        });
     },
     onCancel: callbacks.onCancel,
+    retry: () => {
+      void result.refetch();
+    },
+    onAgentApplied: () => {
+      setEdits({});
+      void result.refetch();
+    },
   };
 }
 
@@ -142,7 +180,7 @@ export interface PetGridCallbacks {
 export function useAvailablePetsGridScreen(callbacks: PetGridCallbacks): PetGridScreenProps {
   const can = usePetCapabilities();
   const list = useListState(25, { field: 'name', dir: 'asc' });
-  const result = useView<PetAvailablePetsRow>('available_pets', list.query);
+  const result = useView<PetAvailablePetsRow>('available_pets', list.viewQuery);
   return {
     status: statusOf(result, can.available_pets_query),
     error: messageOf(result.error),
@@ -150,12 +188,15 @@ export function useAvailablePetsGridScreen(callbacks: PetGridCallbacks): PetGrid
     rows: result.data?.items ?? [],
     columns: AVAILABLE_PETS_COLUMNS,
     filterable: ['species'],
-    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? 0 },
+    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? result.data?.items.length ?? 0 },
     sort: list.sort,
     filters: list.filters,
     onPage: list.setPage,
     onSort: list.setSort,
     onFilter: list.setFilter,
+    retry: () => {
+      void result.refetch();
+    },
     actions: [],
     onOpen: callbacks.onOpen,
   };

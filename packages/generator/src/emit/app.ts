@@ -19,6 +19,10 @@ function screenImport(schema: SchemaPlan, screen: ScreenPlan, from: string): str
   return `import { ${screen.component} } from '${from}/domain/${schema.name}/${screen.file.replace(/\.tsx$/, '.js')}';`;
 }
 
+function screenPropsImport(schema: SchemaPlan, screen: ScreenPlan, from: string): string {
+  return `import type { ${screen.component}Props } from '${from}/domain/${schema.name}/${screen.file.replace(/\.tsx$/, '.js')}';`;
+}
+
 function uniqueScreens(schema: SchemaPlan): ScreenPlan[] {
   return schema.screens.filter(
     (s, i, all) => all.findIndex((o) => o.component === s.component) === i,
@@ -144,8 +148,11 @@ function routeContainer(schema: SchemaPlan, screen: ScreenPlan): string {
   return lines([
     `function ${container}(): ReactElement {`,
     '  const navigate = useNavigate();',
+    // The screen is resolved through the registry, so an override registered for the same
+    // (schema, operation) replaces the generated default (typescript/12 §3).
+    `  const Screen = useResolved<${screen.component}Props>(${quote(screen.key)}, ${quote(name)}, ${quote(screen.operationId)});`,
     ...body.map((l) => indent(l)),
-    `  return <${screen.component} {...props} />;`,
+    '  return <Screen {...props} />;',
     '}',
   ]).trimEnd();
 }
@@ -175,11 +182,12 @@ export function emitRoutes(plan: GenerationPlan, source: Source): GeneratedFile 
       header(source),
       "import type { ReactElement } from 'react';",
       `import { ${needsParams ? 'useNavigate, useParams' : 'useNavigate'}, type RouteObject } from 'react-router';`,
+      "import { useResolved } from './domain/contract.js';",
       ...plan.schemas.flatMap((schema) => {
         const hooks = schema.screens.map((s) => hookNameFor(schema, s)).sort();
         return [
           `import { ${hooks.join(', ')} } from './application/${schema.name}/use${schema.pascal}Screens.js';`,
-          ...uniqueScreens(schema).map((s) => screenImport(schema, s, '.')),
+          ...uniqueScreens(schema).map((s) => screenPropsImport(schema, s, '.')),
           needsParams &&
           schema.screens.some(
             (s) => s.kind === 'detail' || s.kind === 'edit' || s.kind === 'custom',
@@ -189,7 +197,7 @@ export function emitRoutes(plan: GenerationPlan, source: Source): GeneratedFile 
         ];
       }),
       '',
-      '/* Containers: one per generated screen, pairing its application hook with the domain screen. */',
+      '/* Containers: one per generated screen, pairing its application hook with the registry-resolved screen. */',
       '',
       ...containers.flatMap((c) => [c.text, '']),
       '/** Route objects in a stable order; static (no lazy loading) so the table is inspectable. */',
@@ -327,6 +335,7 @@ export function emitIndex(
       ...plan.schemas.flatMap((schema) => [
         `export * from './domain/${schema.name}/types.js';`,
         `export * from './domain/${schema.name}/schemas.js';`,
+        `export * from './domain/${schema.name}/columns.js';`,
         ...uniqueScreens(schema).map(
           (s) => `export * from './domain/${schema.name}/${s.file.replace(/\.tsx$/, '.js')}';`,
         ),

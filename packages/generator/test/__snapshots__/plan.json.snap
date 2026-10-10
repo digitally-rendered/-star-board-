@@ -24,12 +24,14 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false
         },
         {
           "name": "species",
           "key": "field.select",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.enum",
           "required": true,
           "order": 2,
           "group": null,
@@ -38,12 +40,18 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "enum",
+          "options": [
+            "dog",
+            "cat",
+            "bird"
+          ],
           "nullable": false
         },
         {
           "name": "status",
           "key": "field.select",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.enum",
           "required": true,
           "order": 3,
           "group": null,
@@ -52,6 +60,12 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "enum",
+          "options": [
+            "available",
+            "pending",
+            "sold"
+          ],
           "nullable": false
         },
         {
@@ -66,12 +80,14 @@
           "help": null,
           "audit": true,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false
         },
         {
           "name": "record_version",
           "key": "field.number",
-          "columnKey": "list.column.integer",
+          "columnKey": "list.column.number",
           "required": false,
           "order": null,
           "group": null,
@@ -80,6 +96,8 @@
           "help": null,
           "audit": true,
           "type": "integer",
+          "columnType": "number",
+          "options": null,
           "nullable": false
         },
         {
@@ -94,12 +112,14 @@
           "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false
         },
         {
           "name": "created_at",
           "key": "field.datetime",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.date-time",
           "required": false,
           "order": null,
           "group": null,
@@ -108,6 +128,8 @@
           "help": null,
           "audit": true,
           "type": "string",
+          "columnType": "date-time",
+          "options": null,
           "nullable": false
         },
         {
@@ -122,6 +144,8 @@
           "help": null,
           "audit": true,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false
         }
       ],
@@ -138,6 +162,8 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false,
           "schema": {
             "type": "string",
@@ -147,7 +173,7 @@
         {
           "name": "species",
           "key": "field.select",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.enum",
           "required": true,
           "order": 2,
           "group": null,
@@ -156,6 +182,12 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "enum",
+          "options": [
+            "dog",
+            "cat",
+            "bird"
+          ],
           "nullable": false,
           "schema": {
             "type": "string",
@@ -169,7 +201,7 @@
         {
           "name": "status",
           "key": "field.select",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.enum",
           "required": false,
           "order": 3,
           "group": null,
@@ -178,6 +210,12 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "enum",
+          "options": [
+            "available",
+            "pending",
+            "sold"
+          ],
           "nullable": false,
           "schema": {
             "type": "string",
@@ -201,6 +239,8 @@
           "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false,
           "schema": {
             "type": "string"
@@ -220,6 +260,8 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false,
           "schema": {
             "type": "string",
@@ -229,7 +271,7 @@
         {
           "name": "status",
           "key": "field.select",
-          "columnKey": "list.column.string",
+          "columnKey": "list.column.enum",
           "required": false,
           "order": 3,
           "group": null,
@@ -238,6 +280,12 @@
           "help": null,
           "audit": false,
           "type": "string",
+          "columnType": "enum",
+          "options": [
+            "available",
+            "pending",
+            "sold"
+          ],
           "nullable": false,
           "schema": {
             "type": "string",
@@ -260,6 +308,8 @@
           "help": "Free text shown to staff only; never required so a sale is never blocked on paperwork.",
           "audit": false,
           "type": "string",
+          "columnType": "string",
+          "options": null,
           "nullable": false,
           "schema": {
             "type": [
@@ -462,23 +512,34 @@
             "label": "Name",
             "hidden": false,
             "sortable": true,
-            "type": "string"
+            "type": "string",
+            "options": null
           },
           {
             "field": "species",
-            "key": "list.column.string",
+            "key": "list.column.enum",
             "label": "Species",
             "hidden": false,
             "sortable": true,
-            "type": "string"
+            "type": "enum",
+            "options": [
+              "dog",
+              "cat",
+              "bird"
+            ]
           },
           {
             "field": "status",
-            "key": "list.column.string",
+            "key": "list.column.enum",
             "label": "Status",
             "hidden": false,
             "sortable": true,
-            "type": "string"
+            "type": "enum",
+            "options": [
+              "available",
+              "pending",
+              "sold"
+            ]
           },
           {
             "field": "notes",
@@ -486,7 +547,8 @@
             "label": "Notes",
             "hidden": false,
             "sortable": true,
-            "type": "string"
+            "type": "string",
+            "options": null
           },
           {
             "field": "entity_id",
@@ -494,23 +556,26 @@
             "label": "Entity id",
             "hidden": true,
             "sortable": true,
-            "type": "string"
+            "type": "string",
+            "options": null
           },
           {
             "field": "record_version",
-            "key": "list.column.integer",
+            "key": "list.column.number",
             "label": "Record version",
             "hidden": true,
             "sortable": true,
-            "type": "integer"
+            "type": "number",
+            "options": null
           },
           {
             "field": "created_at",
-            "key": "list.column.string",
+            "key": "list.column.date-time",
             "label": "Created at",
             "hidden": true,
             "sortable": true,
-            "type": "string"
+            "type": "date-time",
+            "options": null
           },
           {
             "field": "created_by",
@@ -518,7 +583,8 @@
             "label": "Created by",
             "hidden": true,
             "sortable": true,
-            "type": "string"
+            "type": "string",
+            "options": null
           }
         ],
         "views": [
@@ -533,23 +599,34 @@
                 "label": "Name",
                 "hidden": false,
                 "sortable": true,
-                "type": "string"
+                "type": "string",
+                "options": null
               },
               {
                 "field": "species",
-                "key": "list.column.string",
+                "key": "list.column.enum",
                 "label": "Species",
                 "hidden": false,
                 "sortable": true,
-                "type": "string"
+                "type": "enum",
+                "options": [
+                  "dog",
+                  "cat",
+                  "bird"
+                ]
               },
               {
                 "field": "status",
-                "key": "list.column.string",
+                "key": "list.column.enum",
                 "label": "Status",
                 "hidden": false,
                 "sortable": true,
-                "type": "string"
+                "type": "enum",
+                "options": [
+                  "available",
+                  "pending",
+                  "sold"
+                ]
               }
             ],
             "filters": [
@@ -632,12 +709,16 @@
     "common.back": "Back",
     "common.cancel": "Cancel",
     "common.empty": "Nothing here yet",
+    "common.error": "Something went wrong",
     "common.filter": "Filter",
+    "common.forbidden": "You do not have access to this",
     "common.loading": "Loading",
     "common.next": "Next",
+    "common.notFound": "Not found",
     "common.open": "Open",
     "common.page": "Page",
     "common.previous": "Previous",
+    "common.retry": "Try again",
     "common.save": "Save",
     "common.sort": "Sort",
     "common.system": "System",
@@ -655,7 +736,13 @@
     "pet.field.notes.label": "Notes",
     "pet.field.record_version.label": "Record version",
     "pet.field.species.label": "Species",
+    "pet.field.species.option.bird": "Bird",
+    "pet.field.species.option.cat": "Cat",
+    "pet.field.species.option.dog": "Dog",
     "pet.field.status.label": "Status",
+    "pet.field.status.option.available": "Available",
+    "pet.field.status.option.pending": "Pending",
+    "pet.field.status.option.sold": "Sold",
     "pet.group.details.label": "Details",
     "pet.nav.label": "Pet",
     "pet.screen.create.title": "Pet create",

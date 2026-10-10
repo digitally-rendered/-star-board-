@@ -1,67 +1,106 @@
 /**
- * Stub of `@star-board/runtime` for the compile test: the hook signatures the plan (Part 3)
- * promises, so the emitted TSX is proven well-formed without depending on the runtime package.
+ * Stub of `@star-board/runtime` for the compile test: the signatures the real package exports
+ * (packages/runtime/src), so the emitted TSX is proven well-formed without depending on it.
  */
-// eslint-disable-next-line no-restricted-imports -- a stub of a consumer module; the generator itself never imports React
-import type { ComponentType } from 'react';
-import type { ComponentKey } from '@star-board/core';
+import type { ComponentKey, Registration } from '@star-board/core';
 
 export interface QueryState<T> {
   data: T | undefined;
+  loading: boolean;
   error: unknown;
-  status: 'pending' | 'error' | 'success';
+  refetch: () => Promise<unknown>;
 }
 export interface Page<T> {
   items: T[];
-  total: number;
+  total: number | null;
   page: number;
   pageSize: number;
 }
-export interface SortSpec {
-  field: string;
-  dir: 'asc' | 'desc';
-}
 export interface ListQuery {
-  page?: number;
-  pageSize?: number;
-  sort?: SortSpec;
-  filter?: Record<string, unknown>;
+  where?: Record<string, unknown> | undefined;
+  sort?: string | undefined;
+  page?: number | undefined;
+  pageSize?: number | undefined;
 }
-export type ViewQuery = ListQuery;
+export type ViewQuery = Record<string, unknown>;
+export interface Versioned {
+  entity_id?: string;
+  record_version?: number;
+  entityId?: string;
+  recordVersion?: number;
+}
+export declare function etagOf(doc: Versioned): string;
+export interface MutationVariables<I = unknown> {
+  id?: string;
+  body?: I;
+  doc?: Versioned;
+}
+export interface MutationOptions<I, O> {
+  onSuccess?: (data: O, variables: MutationVariables<I>) => void | Promise<void>;
+  onError?: (error: unknown, variables: MutationVariables<I>) => void;
+}
 export interface MutationState<I, O> {
-  mutate: (input: I) => Promise<O>;
-  isPending: boolean;
+  mutate: (variables: MutationVariables<I>) => void;
+  mutateAsync: (variables: MutationVariables<I>) => Promise<O>;
+  loading: boolean;
   error: unknown;
+  data: O | undefined;
+  reset: () => void;
 }
-export declare function useEntity<T>(schema: string, id: string): QueryState<T>;
-export declare function useEntityList<T>(schema: string, q: ListQuery): QueryState<Page<T>>;
-export declare function useView<T>(view: string, q: ViewQuery): QueryState<Page<T>>;
-export declare function useMutation<I, O>(
+export declare function useEntity<T = unknown>(
+  schema: string,
+  id: string | null | undefined,
+): QueryState<T>;
+export declare function useEntityList<T = unknown>(
+  schema: string,
+  query?: ListQuery,
+): QueryState<Page<T>>;
+export declare function useView<T = unknown>(view: string, query?: ViewQuery): QueryState<Page<T>>;
+export declare function useMutation<I = unknown, O = unknown>(
   operationId: string,
-  opts?: Record<string, unknown>,
+  options?: MutationOptions<I, O>,
 ): MutationState<I, O>;
 export declare function useCapability(cap: string): boolean;
-export declare function useComponent<P>(
+export declare function useComponent<C = unknown>(
   key: ComponentKey,
   schema: string,
   target: string,
-): ComponentType<P>;
-export interface Services {
-  client: unknown;
-  auth: unknown;
-  notify: unknown;
-  agent?: unknown;
+): Registration<C>;
+export declare class HttpError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly fields: Readonly<Record<string, string>> | undefined;
 }
-export declare function useServices(): Services;
+export declare function isHttpError(value: unknown): value is HttpError;
+export interface Principal {
+  id: string;
+  roles: string[];
+  capabilities: string[];
+}
 export interface AuthPort {
-  token(): string | undefined;
+  getToken: () => Promise<string | null>;
+  getPrincipal: () => Principal | null;
+  onUnauthorized: () => void;
 }
-export interface TypedClient<Paths> {
-  readonly paths: Paths;
-  request(path: keyof Paths & string, init?: unknown): Promise<unknown>;
+export interface ClientOptions {
+  headers?: Record<string, string>;
+  fetch?: (input: Request) => Promise<Response>;
 }
-export declare function createClient<Paths>(baseUrl: string, auth: AuthPort): TypedClient<Paths>;
+/** openapi-fetch's Client, reduced to the members the generated adapter names. */
+export interface Client<Paths extends object> {
+  readonly __paths?: Paths;
+  use(...middleware: unknown[]): void;
+}
+export declare function createClient<Paths extends object = Record<string, unknown>>(
+  baseUrl: string,
+  auth: AuthPort,
+  opts?: ClientOptions,
+): Client<Paths>;
 export interface I18n {
-  t(key: string): string;
+  t(key: string, vars?: Record<string, string | number>): string;
+  has(key: string): boolean;
 }
-export declare function createI18n(defaults: Record<string, string>): I18n;
+export declare function createI18n(
+  defaults: Record<string, string>,
+  translations?: Record<string, string>,
+): I18n;

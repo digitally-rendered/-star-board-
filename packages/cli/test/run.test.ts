@@ -10,12 +10,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { BUILD_VERSION as TOKENS_BUILD_VERSION } from '@star-board/tokens';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CONFIG_FILE, INIT_FILES, PARITY_MESSAGE, run, TOKEN_OUTPUTS } from '../src/index.js';
+import { CONFIG_FILE, INIT_FILES, run, TOKEN_OUTPUTS } from '../src/index.js';
 
 const FIXTURE = fileURLToPath(new URL('../../../fixtures/petstore.json', import.meta.url));
 const TOKENS = fileURLToPath(new URL('../../../tokens/reference.tokens.json', import.meta.url));
-const GENERATED_FILE_COUNT = 22;
+const GENERATED_FILE_COUNT = 23;
 
 interface Capture {
   cwd: string;
@@ -298,7 +299,7 @@ describe('star-board run()', () => {
       const code = await run(['tokens', 'build', '--tokens', TOKENS, '--json'], io);
       expect(code).toBe(0);
       const parsed = JSON.parse(io.out()) as { build: { version: string; contract: unknown[] } };
-      expect(parsed.build.version).toBe('1.0.0');
+      expect(parsed.build.version).toBe(TOKENS_BUILD_VERSION);
       expect(parsed.build.contract.length).toBeGreaterThan(0);
     });
 
@@ -337,13 +338,67 @@ describe('star-board run()', () => {
     });
   });
 
-  describe('parity and usage', () => {
-    it('parity is a placeholder that exits 2', async () => {
-      const code = await run(['parity'], io);
-      expect(code).toBe(2);
-      expect(io.out().trim()).toBe(PARITY_MESSAGE);
+  describe('parity', () => {
+    it('is green over a fresh generate and prints one row per operation', async () => {
+      expect(await run(['generate', ...documentArgs()], io)).toBe(0);
+      const code = await run(['parity', ...documentArgs()], io);
+      expect(code).toBe(0);
+      expect(io.out()).toContain('pet_create');
+      expect(io.out()).toContain('parity: ok (7 operation(s))');
+      expect(io.out()).toContain('n/a');
     });
 
+    it('exits 1 and names the cell when a generated screen is missing', async () => {
+      expect(await run(['generate', ...documentArgs()], io)).toBe(0);
+      rmSync(join(root, 'src', 'generated', 'domain', 'pet', 'PetCreateScreen.tsx'));
+      const jsonIo = capture(root);
+      const code = await run(['parity', '--json', ...documentArgs()], jsonIo);
+      expect(code).toBe(1);
+      const parsed = JSON.parse(jsonIo.out()) as { ok: boolean; missing: string[] };
+      expect(parsed.ok).toBe(false);
+      expect(parsed.missing).toContain('pet_create: screenOrAction');
+    });
+
+    it('compares an MCP tools/list file: every operation present passes, a dropped tool fails', async () => {
+      expect(await run(['generate', ...documentArgs()], io)).toBe(0);
+      const ids = [
+        'available_pets_query',
+        'pet_create',
+        'pet_delete',
+        'pet_get',
+        'pet_history',
+        'pet_list',
+        'pet_update',
+      ];
+      writeFileSync(
+        join(root, 'tools.json'),
+        JSON.stringify({ tools: ids.map((name) => ({ name })) }),
+      );
+      expect(await run(['parity', '--mcp-tools', 'tools.json', ...documentArgs()], io)).toBe(0);
+      expect(io.out()).not.toContain('n/a            ok');
+      writeFileSync(
+        join(root, 'tools.json'),
+        JSON.stringify(ids.slice(1).map((name) => ({ name }))),
+      );
+      expect(await run(['parity', '--mcp-tools', 'tools.json', ...documentArgs()], io)).toBe(1);
+      expect(io.out()).toContain('available_pets_query: mcpTool');
+    });
+
+    it('is a usage error without a generated tree or with a malformed tools file', async () => {
+      expect(await run(['parity', ...documentArgs()], io)).toBe(2);
+      expect(io.err()).toContain('no generated files');
+      expect(await run(['generate', ...documentArgs()], io)).toBe(0);
+      writeFileSync(join(root, 'tools.json'), '{ "tools": [{ "nope": 1 }] }');
+      expect(await run(['parity', '--mcp-tools', 'tools.json', ...documentArgs()], io)).toBe(2);
+      expect(io.err()).toContain('no string "name"');
+      writeFileSync(join(root, 'tools.json'), '{ not json');
+      expect(await run(['parity', '--mcp-tools', 'tools.json', ...documentArgs()], io)).toBe(2);
+      expect(await run(['parity', '--mcp-tools', 'missing.json', ...documentArgs()], io)).toBe(2);
+      expect(io.err()).toContain('Cannot read MCP tools file');
+    });
+  });
+
+  describe('usage', () => {
     it('an unknown command exits 2 and prints nothing on stdout', async () => {
       const code = await run(['frobnicate'], io);
       expect(code).toBe(2);

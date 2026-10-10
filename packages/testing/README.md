@@ -2,9 +2,14 @@
 
 L5. The parity suite (document ↔ generated code ↔ MCP tool list), msw handlers derived from the
 document, deterministic fixtures, page-object descriptors for the generated screens and the
-fixture loader. Imports `@star-board/core`, `@star-board/spec` and `@star-board/generator`; the
-renderer-dependent screen harness (RTL + vitest-axe) is described in `src/harness/README.md` and
-is the only part that will import `@star-board/renderer-mui`.
+fixture loader. Three entry points:
+
+- `@star-board/testing` — node-safe: parity, msw server, fixtures, selectors, `loadFixtureModel`.
+- `@star-board/testing/browser` — handlers, store and fixtures without `msw/node`, for a dev mode
+  without a backend (`examples/petstore-ui/src/msw/browser.ts`).
+- `@star-board/testing/harness` — the screen harness (RTL + vitest-axe under the runtime
+  providers); the only entry that imports `@star-board/renderer-mui`, React and `react-router`.
+  Needs jsdom (`// @vitest-environment jsdom`).
 
 Rules applied: hexagonal-rules `shared/13` §2 "Parity is tested" and §6, `typescript/12` §6–§7,
 `shared/02` §6a (the backend contract the msw handlers imitate).
@@ -44,7 +49,7 @@ import { setupServerFromModel, fixtures, loadFixtureModel } from '@star-board/te
 
 const model = loadFixtureModel();
 const { server, store } = setupServerFromModel(model, { principalCapabilities: ['pet:read'] });
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen());
 afterEach(() => store.reset());
 afterAll(() => server.close());
 store.seed('pet', fixtures(model, 'pet', 10));
@@ -83,6 +88,52 @@ value)` is the structural check the handlers and the fixture tests share (not a 
 
 `loadFixtureModel(name = 'petstore')` loads `fixtures/<name>.json` from the workspace through
 `loadDocument`, so a fixture that is missing an extension fails closed here too.
+
+## Screen harness (`@star-board/testing/harness`)
+
+```ts
+import {
+  capabilityCases,
+  expectNoViolations,
+  expectTestIds,
+  renderedTestIds,
+  renderGeneratedScreen,
+  renderRoutes,
+} from '@star-board/testing/harness';
+
+const { container } = renderGeneratedScreen({
+  model,
+  register: (registry) => {
+    registerGenerated(registry);
+    registerPetOverrides(registry);
+  },
+  screen: { key: 'screen.list', schema: 'pet', target: 'pet_list' },
+  props,
+});
+expectTestIds(container, renderedTestIds(model, 'pet', 'list'));
+await expectNoViolations(container);
+```
+
+`createHarness(options)` builds what the app's composition root builds: a QueryClient, a registry
+with the renderer defaults then whatever `register` adds (the generated `registerGenerated`, the
+overrides), Services over `createClient(baseUrl)` (default `http://star-board.test/api`, which the
+msw server answers) with a principal holding every capability of the document unless `principal`
+is given, and the i18n table (runtime + renderer defaults + `messages`, the generated
+`i18n.defaults.json`). An optional `theme` (`createTheme` + `buildCssVariables`) mounts `ThemeRoot`.
+
+| Helper                                     | Role                                                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `renderWithProviders(ui, options)`         | RTL `render` under the providers                                                                                           |
+| `renderGeneratedScreen({ screen, props })` | resolves `screen.<kind>` at (schema, operationId) through the registry — default or override — and renders it with `props` |
+| `renderRoutes({ routes, initialEntries })` | the generated route table (containers + hooks) in a memory router: the full workflow against msw                           |
+| `renderedTestIds(model, schema, kind)`     | the static ids a screen with data carries (hidden columns' sort buttons and a filterless grid's filter bar excluded)       |
+| `expectTestIds(container, ids)`            | fails naming every missing `data-testid`                                                                                   |
+| `expectNoViolations(root)`                 | axe over `root`, violations spelled out                                                                                    |
+| `capabilityCases(model)`                   | per operation: the principal `with` every capability and the one `without` the operation's, for the hide/deny matrix       |
+
+The tests that mount the petstore screens live in `examples/petstore-ui/src/*.test.tsx` (every
+screen with axe and test ids, the capability hide/deny matrix, the override round trip, the full
+workflow); this package's `harness.test.tsx` covers the harness itself.
 
 ## Page objects
 

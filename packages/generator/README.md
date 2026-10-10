@@ -41,11 +41,12 @@ check(model, opts); // Drift[]: [{ path, kind: 'missing' | 'changed' | 'extra' }
 ```
 <out>/
 ├── domain/                               props-only components; never fetch (typescript/01 §2)
-│   ├── contract.ts                       typed props of the resolved components: FieldProps, ColumnProps, ListProps, ActionProps, StateProps, HelpProps, AgentPanelProps
-│   ├── AgentPanelSlot.tsx                the agent affordance slot (screen.custom / agent-panel), null until registered
+│   ├── contract.ts                       re-exports the renderer's prop contracts (FieldProps, CellProps, ColumnDescriptor, ActionProps, StateProps, HelpProps, Option, FieldDescriptor) and adds ScreenStatus, ColumnSpec, TableProps, AgentSlotProps, `useResolved(key, schema, target)` and the exactOptionalPropertyTypes helpers (fieldText, stateProps, retryAction)
+│   ├── AgentPanelSlot.tsx                the agent affordance slot (screen.custom / agent-panel): passes operationId, args, ifMatch, onApplied, disabled to the renderer's AgentPanel
 │   └── <schema>/
 │       ├── types.ts                      <Schema>, <Schema>Create, <Schema>Update, branded <Schema>Id, one Pick row type per view
 │       ├── schemas.ts                    zod 4: <Schema>CreateSchema, <Schema>UpdateSchema, <Schema>DocumentSchema (+ inferred *Values)
+│       ├── columns.ts                    <SCHEMA>_COLUMNS (one ColumnDescriptor per Document field, `list.column.<type>` from the tokens column types: string, number, boolean, date-time, enum, reference), <SCHEMA>_LIST_COLUMNS, one <VIEW>_COLUMNS per view, <SCHEMA>_<FIELD>_OPTIONS for every enum
 │       ├── <Schema>ListScreen.tsx        screen.list   — columns from the Document (system fields hidden), sort headers, pager
 │       ├── <Schema>GridScreen.tsx        screen.grid   — one per schema with a view; columns and filters from x-view
 │       ├── <Schema>DetailScreen.tsx      screen.detail — field values through list.column.<type>, help.inline, item actions
@@ -53,16 +54,16 @@ check(model, opts); // Drift[]: [{ path, kind: 'missing' | 'changed' | 'extra' }
 │       ├── <Schema>EditScreen.tsx        screen.edit
 │       └── <Schema><Op>Screen.generated.tsx   screen.custom stub per Tier 3 operation
 ├── application/                          application hooks (typescript/01 §3); no fetch, only the runtime's shared data hooks
-│   ├── support.ts                        statusOf, messageOf, fieldErrors, useListState
+│   ├── support.ts                        statusOf (404 → ready/empty, 403 → forbidden), messageOf, fieldErrors, serverFieldErrors, versionedOf/etagFor (If-Match), useListState (query for useEntityList, viewQuery for useView)
 │   └── <schema>/
-│       ├── use<Schema>Actions.ts         <SCHEMA>_OPERATIONS, use<Schema>Capabilities(), one use<Schema><Op>() over useMutation per POST/PUT/PATCH/DELETE
+│       ├── use<Schema>Actions.ts         <SCHEMA>_OPERATIONS, use<Schema>Capabilities(), one use<Schema><Op>(): MutationState<Body, Response> over useMutation per POST/PUT/PATCH/DELETE
 │       └── use<Schema>Screens.ts         container hooks: use<Schema>ListScreen, use<View>GridScreen, use<Schema>DetailScreen, use<Schema>CreateScreen, use<Schema>EditScreen, use<Schema><Op>Screen
 ├── adapters/
 │   ├── paths.ts                          `operations` and `paths` interfaces (method, path, params, body, response) + OPERATION_TABLE
 │   └── client.ts                         createGeneratedClient(baseUrl, auth) = createClient<paths>(…)
 ├── registry.ts                           registerGenerated(registry): the generated screens only (key screen.*, schema, target = operationId, source 'generated')
 ├── setup.ts                              createGeneratedRegistry(): renderer registerDefaults(), then registerGenerated()
-├── routes.tsx                            react-router RouteObject[]; containers pair a hook with a screen; lazy-free
+├── routes.tsx                            react-router RouteObject[]; containers pair a hook with the screen resolved through the registry (`useResolved('screen.<kind>', schema, operationId)`), so a whole-screen override replaces the default; lazy-free
 ├── nav.ts                                one entry per schema, ordered by schema name
 ├── i18n.defaults.json, i18n.ts           <schema>.field.<f>.label|help, <schema>.screen.<kind>.title, <schema>.view.<v>.title, <schema>.action.<op>.label, <schema>.group.<g>.label, <schema>.nav.label, common.*
 ├── index.ts                              barrel
@@ -73,8 +74,16 @@ Routes: `/<schema>`, `/<schema>/new`, `/<schema>/:id`, `/<schema>/:id/edit`, `/v
 `/<schema>/<op>` for a collection Tier 3 operation and `/<schema>/:id/<op>` for a record one.
 
 Screens exist only when the matching operation is in the document with a non-empty capability
-list. Screens compose resolved contract components: `useComponent('field.text', 'pet', 'name')`
-and so on from the runtime; the registry decides which renderer answers. Actions are shown only
+list. Screens compose resolved contract components: `useResolved<FieldProps<string>>('field.text',
+'pet', 'name')` (the runtime's `useComponent(...).component`, typed by the caller); the registry
+decides which renderer answers. Field widgets receive the renderer's value types (`text|select|
+datetime → string`, `number → number | null`, `boolean`, `tags → string[]`, `subform → object`,
+`reference → string | null`) and hand back `undefined` for an empty text or null, so zod reports a
+missing required field as such; enum fields get `options` from `columns.ts`. Cells receive
+`{ value, row, column }` with the column descriptor; state components `{ title, description?,
+action? }` built by `stateProps` so an undefined member is never passed. The edit screen hands the
+loaded document's ETag to the agent slot (`ifMatch`), without which an agent apply of an update or
+delete fails closed. Actions are shown only
 when `useCapability` grants every capability of the operation (the container filters them; a
 missing capability is a hidden action). The posture (`x-ownership-posture`) chooses what a
 missing read capability shows: `state.forbidden` under 403, `state.empty` under 404.
@@ -87,19 +96,28 @@ with the Document type unless it declares a response schema; `delete` answers `v
 
 ### Runtime contract assumed by the generated code
 
-From `@star-board/runtime` (plan Part 3): `useEntity(schema, id)`, `useEntityList(schema, q)`,
-`useView(view, q)` returning `{ data, error, status }` with `data: { items, total }`;
-`useMutation(operationId)` returning `{ mutate, isPending, error }`; `useCapability(cap)`;
-`useComponent(key, schema, target)`; `createClient<Paths>(baseUrl, auth)`; `createI18n(defaults)`
-with `.t(key)`. `test/stubs/*.d.ts` hold these signatures; the compile test proves the output
-type-checks against them under `tsconfig.base.json`'s strictness.
+From `@star-board/runtime` (as exported, not as planned): `useEntity(schema, id)`,
+`useEntityList(schema, q)`, `useView(view, q)` returning `{ data, loading, error, refetch }` with
+`data: { items, total: number | null, page, pageSize }`; `ListQuery` is `{ page, pageSize, sort:
+'name' | '-name', where }` and a view query is a flat record (`page`, `limit`, `sort`, one entry
+per filter); `useMutation(operationId)` returning `{ mutate, mutateAsync, loading, error }` whose
+variables are `{ id?, body?, doc? }` — update and delete pass `doc: versionedOf(entity)` and the
+runtime builds `If-Match` from it; `useCapability(cap)`; `useComponent(key, schema, target)`
+returning a `Registration` (the generated `useResolved` reads `.component`); `etagOf`,
+`isHttpError`; `createClient<Paths>(baseUrl, auth)`; `createI18n(defaults)` with `.t(key)`. From
+the renderer named in `renderer`: the prop contracts above, `AgentPanelProps` and
+`registerDefaults`. `test/stubs/*.d.ts` mirror these signatures (keep them in step with
+`packages/runtime/src` and `packages/renderer-mui/src/contracts.ts`); the compile test proves the
+output type-checks against them under `tsconfig.base.json`'s strictness, and
+`examples/petstore-ui` type-checks the same output against the real packages.
 
 ## Override model (typescript/12 §3)
 
 `registry.ts` registers each generated screen at `(schema, operationId)` with `source:
-'generated'`. An override in `src/features/<schema>/index.ts` registers at the same coordinates
-with `source: 'override'` and wins (shared/01 §6a scoring, role for channel); a narrower override
-registers a field, column, action or state component instead. The generator never reads or writes
+'generated'`, and every route container resolves its screen through the registry. An override in
+`src/features/<schema>/index.ts` registers at the same coordinates with `source: 'override'` and
+wins (shared/01 §6a scoring, role for channel); a narrower override registers a field, column,
+action or state component instead. `examples/petstore-ui/src/features/pet` holds one of each. The generator never reads or writes
 `features/`: `writeFiles` refuses any path under it (`GENERATOR_OUT_OF_SURFACE`) and the override
 safety test snapshots the tree before and after a run.
 

@@ -27,14 +27,15 @@
     "check:waves": "node tools/check_waves.ts",
     "check:ratchet": "node tools/ratchet.ts",
     "check:noskip": "node tools/noskip.ts",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:arch && pnpm check:waves && pnpm check:ratchet && pnpm check:noskip",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:arch && pnpm check:fitness && pnpm check:waves && pnpm check:ratchet && pnpm check:noskip",
     "codegen:check": "pnpm -F @star-board/cli run check:example",
     "changeset": "changeset",
     "release": "pnpm build && changeset publish",
     "prepare": "husky",
     "storybook": "pnpm -F @star-board/storybook storybook",
     "build-storybook": "pnpm -F @star-board/storybook build-storybook",
-    "test:visual": "pnpm -F @star-board/storybook test"
+    "test:visual": "pnpm -F @star-board/storybook test",
+    "check:fitness": "node tools/fitness.ts"
   },
   "devDependencies": {
     "@changesets/changelog-github": "1.0.1",
@@ -60,7 +61,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,mts,cts}": [
-      "eslint --fix --max-warnings 0",
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
       "prettier --write"
     ],
     "*.{json,md,yaml,yml}": [

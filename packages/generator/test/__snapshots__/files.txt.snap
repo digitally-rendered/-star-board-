@@ -5,6 +5,7 @@ application/pet/usePetScreens.ts
 application/support.ts
 domain/AgentPanelSlot.tsx
 domain/contract.ts
+domain/pet/columns.ts
 domain/pet/PetCreateScreen.tsx
 domain/pet/PetDetailScreen.tsx
 domain/pet/PetEditScreen.tsx

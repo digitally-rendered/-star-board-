@@ -6,23 +6,48 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "preview": "vite preview",
     "test": "vitest run",
-    "generate": "star-board generate --document ../../fixtures/petstore.json --out src/generated --features src/features"
+    "test:e2e": "playwright test",
+    "generate": "star-board generate --document ../../fixtures/petstore.json --out src/generated --features src/features",
+    "check": "star-board check --document ../../fixtures/petstore.json --out src/generated --features src/features",
+    "parity": "star-board parity --document ../../fixtures/petstore.json --out src/generated --features src/features"
   },
   "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@mui/material": "9.5.0",
     "@star-board/core": "workspace:*",
-    "@star-board/runtime": "workspace:*",
     "@star-board/renderer-mui": "workspace:*",
+    "@star-board/runtime": "workspace:*",
+    "@star-board/tokens": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-router": "8.4.0"
+    "react-router": "8.4.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.64.0",
     "@star-board/cli": "workspace:*",
+    "@star-board/generator": "workspace:*",
+    "@star-board/spec": "workspace:*",
     "@star-board/testing": "workspace:*",
-    "vite": "8.3.4",
-    "@vitejs/plugin-react": "6.1.2",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3"
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.1.2",
+    "jsdom": "28.1.0",
+    "msw": "3.0.2",
+    "vite": "8.3.4",
+    "vitest-axe": "0.1.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

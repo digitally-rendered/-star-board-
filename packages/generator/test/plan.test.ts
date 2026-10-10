@@ -74,11 +74,23 @@ describe('plan(model)', () => {
       'created_by!',
     ]);
     expect(pet.columns.views).toHaveLength(1);
+    // enum fields render through the enum column; the renderer owns `list.column.<type>`.
     expect(pet.columns.views[0]?.columns.map((c) => c.key)).toEqual([
       'list.column.string',
-      'list.column.string',
-      'list.column.string',
+      'list.column.enum',
+      'list.column.enum',
     ]);
+    expect(pet.columns.list.map((c) => c.type)).toEqual([
+      'string',
+      'enum',
+      'enum',
+      'string',
+      'string',
+      'number',
+      'date-time',
+      'string',
+    ]);
+    expect(pet.columns.list[1]?.options).toEqual(['dog', 'cat', 'bird']);
     expect(pet.columns.views[0]?.filters).toEqual([{ field: 'species', op: '_eq' }]);
   });
 

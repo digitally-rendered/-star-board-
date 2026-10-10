@@ -5,18 +5,38 @@
     "outDir": ".tsbuild",
     "tsBuildInfoFile": ".tsbuild/.tsbuildinfo",
     "emitDeclarationOnly": true,
-    "types": ["node", "react"]
+    "resolveJsonModule": true,
+    "types": ["node", "react", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "*.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.json",
+    "test/**/*.ts",
+    "e2e/**/*.ts",
+    "*.config.ts"
+  ],
   "references": [
     {
       "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/spec"
+    },
+    {
+      "path": "../../packages/tokens"
     },
     {
       "path": "../../packages/runtime"
     },
     {
       "path": "../../packages/renderer-mui"
+    },
+    {
+      "path": "../../packages/generator"
+    },
+    {
+      "path": "../../packages/testing"
     }
   ]
 }

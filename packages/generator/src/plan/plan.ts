@@ -69,10 +69,17 @@ export interface FieldPlan {
   help: string | null;
   /** System-managed: present in the Document but in neither Create nor Update. */
   audit: boolean;
-  /** JSON Schema type name used in `list.column.<type>`. */
+  /** JSON Schema type name of the field. */
   type: string;
+  /** The `list.column.<type>` parameter: the renderer's column types (tokens `LIST_COLUMN_TYPES`). */
+  columnType: ColumnType;
+  /** Enum members when the field is an enumeration; the select widget and the enum column read them. */
+  options: string[] | null;
   nullable: boolean;
 }
+
+/** The `list.column.<type>` parameters a renderer implements (one authority: the tokens contract). */
+export type ColumnType = 'string' | 'number' | 'boolean' | 'date-time' | 'enum' | 'reference';
 
 export interface FormFieldPlan extends FieldPlan {
   schema: JsonSchema;
@@ -121,7 +128,10 @@ export interface ColumnPlan {
   label: string;
   hidden: boolean;
   sortable: boolean;
-  type: string;
+  /** The `list.column.<type>` parameter. */
+  type: ColumnType;
+  /** Enum members for an `enum` column. */
+  options: string[] | null;
 }
 
 export interface ViewColumnsPlan {
@@ -159,12 +169,16 @@ export const COMMON_I18N: Readonly<Record<string, string>> = {
   'common.back': 'Back',
   'common.cancel': 'Cancel',
   'common.empty': 'Nothing here yet',
+  'common.error': 'Something went wrong',
   'common.filter': 'Filter',
+  'common.forbidden': 'You do not have access to this',
   'common.loading': 'Loading',
   'common.next': 'Next',
+  'common.notFound': 'Not found',
   'common.open': 'Open',
   'common.page': 'Page',
   'common.previous': 'Previous',
+  'common.retry': 'Try again',
   'common.save': 'Save',
   'common.sort': 'Sort',
   'common.system': 'System',
@@ -241,6 +255,10 @@ function planSchema(
     if (field.help !== null) i18n[`${name}.field.${field.name}.help`] ??= field.help;
   }
   for (const field of [...fields, ...createFields, ...updateFields]) {
+    for (const option of field.options ?? [])
+      i18n[`${name}.field.${field.name}.option.${option}`] ??= humanize(option);
+  }
+  for (const field of [...fields, ...createFields, ...updateFields]) {
     if (field.group !== null) i18n[`${name}.group.${field.group}.label`] ??= humanize(field.group);
   }
 
@@ -287,10 +305,11 @@ function planField(
   const type = primaryType(schema) ?? 'string';
   const hint = entry.ui.widget[field];
   const keySource = hint === undefined ? schema : { ...schema, 'x-ui-widget': hint };
+  const columnType = columnTypeOf(schema);
   return {
     name: field,
     key: fieldKeyFor(keySource),
-    columnKey: `list.column.${type}`,
+    columnKey: `list.column.${columnType}`,
     required: flags.required,
     order: entry.ui.order[field] ?? null,
     group: entry.ui.group[field] ?? null,
@@ -299,8 +318,34 @@ function planField(
     help: entry.reasons[field] ?? stringOf(schema.description) ?? null,
     audit: flags.audit,
     type,
+    columnType,
+    options: enumOf(schema),
     nullable: isNullable(schema),
   };
+}
+
+/** The string members of a schema's `enum`, or null when it has none. */
+export function enumOf(schema: JsonSchema): string[] | null {
+  if (!Array.isArray(schema.enum)) return null;
+  const members = schema.enum.filter((v): v is string => typeof v === 'string');
+  return members.length > 0 ? members : null;
+}
+
+/** JSON Schema → the `list.column.<type>` a renderer implements (typescript/13 §3 mapping). */
+export function columnTypeOf(schema: JsonSchema): ColumnType {
+  if (typeof schema.$ref === 'string') return 'reference';
+  if (enumOf(schema) !== null) return 'enum';
+  switch (primaryType(schema)) {
+    case 'number':
+    case 'integer':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'string':
+      return schema.format === 'date-time' || schema.format === 'date' ? 'date-time' : 'string';
+    default:
+      return 'string';
+  }
 }
 
 /** `x-ui-order` first (ascending, ties by schema order), then the rest in schema order. */
@@ -336,6 +381,7 @@ function formFields(
       audit: false,
       schema,
       hidden: base.hidden,
+      options: enumOf(schema) ?? base.options,
     };
   });
   return orderFields(fields);
@@ -499,7 +545,8 @@ function listColumns(fields: FieldPlan[]): ColumnPlan[] {
     label: f.label,
     hidden: f.audit || f.hidden,
     sortable: f.type !== 'object' && f.type !== 'array',
-    type: f.type,
+    type: f.columnType,
+    options: f.options,
   }));
 }
 
@@ -525,7 +572,8 @@ function planViewColumns(
         sortable:
           view.sort.some((s) => s.field === field) ||
           (known?.type !== 'object' && known?.type !== 'array'),
-        type: known?.type ?? 'string',
+        type: known?.columnType ?? 'string',
+        options: known?.options ?? null,
       };
     }),
     filters: view.filters.map((f) => ({ field: f.field, op: f.op })),

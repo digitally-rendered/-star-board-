@@ -20,6 +20,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./browser": {
+      "star-board-source": "./src/browser.ts",
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./harness": {
+      "star-board-source": "./src/harness/index.ts",
+      "types": "./dist/harness/index.d.ts",
+      "import": "./dist/harness/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -28,11 +38,14 @@
   },
   "dependencies": {
     "@star-board/core": "workspace:*",
-    "@star-board/spec": "workspace:*",
-    "@star-board/runtime": "workspace:*",
-    "@star-board/renderer-mui": "workspace:*",
     "@star-board/generator": "workspace:*",
+    "@star-board/renderer-mui": "workspace:*",
+    "@star-board/runtime": "workspace:*",
+    "@star-board/spec": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
+    "@testing-library/react": "16.3.3",
     "msw": "3.0.2",
+    "react-router": "8.4.0",
     "vitest-axe": "0.1.0"
   },
   "star-board": {
@@ -40,12 +53,12 @@
   },
   "peerDependencies": {
     "react": ">=19",
-    "react-dom": ">=19"
+    "react-dom": ">=19",
+    "vitest": ">=5"
   },
   "devDependencies": {
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.7",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

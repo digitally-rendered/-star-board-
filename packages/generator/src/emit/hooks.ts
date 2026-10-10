@@ -1,6 +1,6 @@
 import { pascalCase, quote } from '../plan/names.js';
 import type { ActionPlan, GenerationPlan, SchemaPlan, ScreenPlan } from '../plan/plan.js';
-import { viewConstName } from './screens.js';
+import { listColumnsConstName, viewConstName } from './screens.js';
 import { header, indent, lines, type GeneratedFile, type Source } from './support.js';
 import { viewRowType } from './types.js';
 
@@ -18,19 +18,29 @@ export function emitApplicationSupport(source: Source): GeneratedFile {
     contents: lines([
       header(source),
       "import { useCallback, useMemo, useState } from 'react';",
+      "import { etagOf, isHttpError, type ListQuery, type Versioned, type ViewQuery } from '@star-board/runtime';",
       "import type { ScreenStatus, SortDirection, SortState } from '../domain/contract.js';",
       '',
       '/** The shape the shared data hooks report; only these members are read. */',
       'export interface QueryLike {',
-      '  status: string;',
+      '  loading: boolean;',
       '  error: unknown;',
       '}',
       '',
+      '/**',
+      ' * Loading, then error, then ready (typescript/05 §2). A 404 reads as "nothing to show" so the',
+      ' * screen renders its empty state (the 404 posture makes it indistinguishable from a denial); a',
+      ' * 403 is the forbidden state.',
+      ' */',
       'export function statusOf(result: QueryLike, allowed: boolean): ScreenStatus {',
       "  if (!allowed) return 'forbidden';",
-      "  if (result.status === 'pending' || result.status === 'loading') return 'loading';",
-      "  if (result.status === 'error') return 'error';",
-      "  return 'ready';",
+      "  if (result.loading) return 'loading';",
+      "  if (result.error === undefined || result.error === null) return 'ready';",
+      '  if (isHttpError(result.error)) {',
+      "    if (result.error.status === 404) return 'ready';",
+      "    if (result.error.status === 403) return 'forbidden';",
+      '  }',
+      "  return 'error';",
       '}',
       '',
       'export function messageOf(error: unknown): string | undefined {',
@@ -51,72 +61,93 @@ export function emitApplicationSupport(source: Source): GeneratedFile {
       '  return errors;',
       '}',
       '',
-      'export interface ListQuery {',
-      '  page: number;',
-      '  pageSize: number;',
-      '  sort?: SortState;',
-      '  filter?: Record<string, unknown>;',
+      '/** The per-field messages of a 422 response (RFC 7807 `errors` or the envelope `details`). */',
+      'export function serverFieldErrors(error: unknown): Record<string, string> {',
+      '  return isHttpError(error) && error.fields !== undefined ? { ...error.fields } : {};',
+      '}',
+      '',
+      '/** The `entity_id` and `record_version` of a document, for If-Match (typescript/02 §3). */',
+      'export function versionedOf(entity: object): Versioned {',
+      '  const record: Record<string, unknown> = { ...entity };',
+      '  const id = record.entity_id ?? record.entityId;',
+      '  const version = record.record_version ?? record.recordVersion;',
+      '  const out: Versioned = {};',
+      "  if (typeof id === 'string') out.entity_id = id;",
+      "  if (typeof version === 'number') out.record_version = version;",
+      '  return out;',
+      '}',
+      '',
+      '/** `W/"<id>:<version>"` of a loaded document, or undefined when it carries no version. */',
+      'export function etagFor(entity: object | undefined): string | undefined {',
+      '  if (entity === undefined) return undefined;',
+      '  const versioned = versionedOf(entity);',
+      '  if (versioned.entity_id === undefined || versioned.record_version === undefined) return undefined;',
+      '  return etagOf(versioned);',
+      '}',
+      '',
+      '/** `name` or `-name`: the sort spelling the backend routers and the runtime ListQuery share. */',
+      'export function sortParam(sort: SortState | undefined): string | undefined {',
+      '  if (sort === undefined) return undefined;',
+      "  return sort.dir === 'desc' ? `-${sort.field}` : sort.field;",
       '}',
       '',
       'export interface ListState {',
       '  page: number;',
       '  pageSize: number;',
       '  sort: SortState | undefined;',
-      '  filters: Record<string, unknown>;',
+      '  filters: Record<string, string>;',
+      '  /** For `useEntityList`: page, pageSize, sort and `where` from the set filters. */',
       '  query: ListQuery;',
+      '  /** For `useView`: page, limit, sort and one query parameter per set filter. */',
+      '  viewQuery: ViewQuery;',
       '  setPage: (page: number) => void;',
       '  setSort: (field: string, dir: SortDirection) => void;',
-      '  setFilter: (field: string, value: unknown) => void;',
+      '  setFilter: (field: string, value: string) => void;',
       '}',
       '',
-      '/** Page, sort and filter state of one list or grid; the query omits unset members. */',
+      '/** Page, sort and filter state of one list or grid; the queries omit unset members. */',
       'export function useListState(pageSize: number, initialSort?: SortState): ListState {',
       '  const [page, setPage] = useState(1);',
       '  const [sort, setSortState] = useState<SortState | undefined>(initialSort);',
-      '  const [filters, setFilters] = useState<Record<string, unknown>>({});',
+      '  const [filters, setFilters] = useState<Record<string, string>>({});',
       '  const setSort = useCallback((field: string, dir: SortDirection) => {',
       '    setSortState({ field, dir });',
       '    setPage(1);',
       '  }, []);',
-      '  const setFilter = useCallback((field: string, value: unknown) => {',
+      '  const setFilter = useCallback((field: string, value: string) => {',
       '    setFilters((previous) => ({ ...previous, [field]: value }));',
       '    setPage(1);',
       '  }, []);',
+      '  const active = useMemo(',
+      "    () => Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '')),",
+      '    [filters],',
+      '  );',
       '  const query = useMemo<ListQuery>(() => {',
-      "    const active = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== ''));",
-      '    return {',
-      '      page,',
-      '      pageSize,',
-      '      ...(sort === undefined ? {} : { sort }),',
-      '      ...(Object.keys(active).length === 0 ? {} : { filter: active }),',
-      '    };',
-      '  }, [filters, page, pageSize, sort]);',
-      '  return { page, pageSize, sort, filters, query, setPage, setSort, setFilter };',
+      '    const out: ListQuery = { page, pageSize };',
+      '    const sortValue = sortParam(sort);',
+      '    if (sortValue !== undefined) out.sort = sortValue;',
+      '    if (Object.keys(active).length > 0) out.where = active;',
+      '    return out;',
+      '  }, [active, page, pageSize, sort]);',
+      '  const viewQuery = useMemo<ViewQuery>(() => {',
+      '    const out: ViewQuery = { ...active, page, limit: pageSize };',
+      '    const sortValue = sortParam(sort);',
+      '    if (sortValue !== undefined) out.sort = sortValue;',
+      '    return out;',
+      '  }, [active, page, pageSize, sort]);',
+      '  return { page, pageSize, sort, filters, query, viewQuery, setPage, setSort, setFilter };',
       '}',
     ]),
   };
-}
-
-function inputTypeName(schema: SchemaPlan, action: ActionPlan): string {
-  return `${schema.pascal}${pascalCase(action.operation)}Input`;
 }
 
 function hookName(schema: SchemaPlan, action: ActionPlan): string {
   return `use${schema.pascal}${pascalCase(action.operation)}`;
 }
 
-function inputMembers(schema: SchemaPlan, action: ActionPlan): string[] {
-  const members = action.params.map((param) =>
-    param === 'id' || param === schema.idField
-      ? `${param}: ${schema.pascal}Id;`
-      : `${param}: string;`,
-  );
-  if (action.hasRequest) members.push(`body: ${bodyType(schema, action)};`);
-  return members;
-}
-
 /** The request type: the Create/Update interface for those operations, else the paths entry. */
 function bodyType(schema: SchemaPlan, action: ActionPlan): string {
+  if (!action.hasRequest) return 'never';
   if (action.kind === 'create') return `${schema.pascal}Create`;
   if (action.kind === 'update') return `${schema.pascal}Update`;
   return `operations[${quote(action.id)}]['body']`;
@@ -131,12 +162,10 @@ function responseType(schema: SchemaPlan, action: ActionPlan): string {
 export function emitActions(schema: SchemaPlan, source: Source): GeneratedFile {
   const { name, pascal } = schema;
   const mutations = schema.actions.filter((a) => a.mutation);
-  const needsCreate = mutations.some((a) => a.kind === 'create');
-  const needsUpdate = mutations.some((a) => a.kind === 'update');
-  const needsId = mutations.some((a) => a.params.length > 0);
+  const needsCreate = mutations.some((a) => a.kind === 'create' && a.hasRequest);
+  const needsUpdate = mutations.some((a) => a.kind === 'update' && a.hasRequest);
   const typeImports = [
     needsCreate ? `${pascal}Create` : null,
-    needsId ? `${pascal}Id` : null,
     needsUpdate ? `${pascal}Update` : null,
   ].filter((v): v is string => v !== null);
   const capabilities = [...new Set(schema.actions.flatMap((a) => a.capabilities))].sort();
@@ -158,7 +187,7 @@ export function emitActions(schema: SchemaPlan, source: Source): GeneratedFile {
     path: `application/${name}/use${pascal}Actions.ts`,
     contents: lines([
       header(source),
-      "import { useCapability, useMutation } from '@star-board/runtime';",
+      "import { useCapability, useMutation, type MutationState } from '@star-board/runtime';",
       `import type { operations } from '../../adapters/paths.js';`,
       typeImports.length > 0
         ? `import type { ${typeImports.join(', ')} } from '../../domain/${name}/types.js';`
@@ -185,13 +214,18 @@ export function emitActions(schema: SchemaPlan, source: Source): GeneratedFile {
       '}',
       '',
       ...mutations.flatMap((action) => [
-        `export interface ${inputTypeName(schema, action)} {`,
-        ...inputMembers(schema, action).map((m) => indent(m)),
-        '}',
-        '',
-        `/** \`${action.id}\`: ${action.method.toUpperCase()} ${action.path}; requires ${action.capabilities.map((c) => `\`${c}\``).join(', ') || 'no capability'}. */`,
-        `export function ${hookName(schema, action)}() {`,
-        `  return useMutation<${inputTypeName(schema, action)}, ${responseType(schema, action)}>(${quote(action.id)});`,
+        `/**`,
+        ` * \`${action.id}\`: ${action.method.toUpperCase()} ${action.path}; requires ${action.capabilities.map((c) => `\`${c}\``).join(', ') || 'no capability'}.`,
+        ...(action.kind === 'update' || action.kind === 'delete'
+          ? [
+              ' * Call `mutateAsync({ id, body, doc })` with the loaded document: its version becomes the If-Match header.',
+            ]
+          : [
+              ` * Call \`mutateAsync({ ${action.item ? 'id, ' : ''}${action.hasRequest ? 'body' : ''} })\`.`,
+            ]),
+        ' */',
+        `export function ${hookName(schema, action)}(): MutationState<${bodyType(schema, action)}, ${responseType(schema, action)}> {`,
+        `  return useMutation<${bodyType(schema, action)}, ${responseType(schema, action)}>(${quote(action.id)});`,
         '}',
         '',
       ]),
@@ -226,15 +260,13 @@ export function emitScreenHooks(
   const screenImports = schema.screens
     .filter((s, i, all) => all.findIndex((o) => o.component === s.component) === i)
     .map((s) => {
-      const consts =
-        s.kind === 'list'
-          ? [`${name.toUpperCase()}_LIST_COLUMNS`]
-          : s.kind === 'grid'
-            ? schema.columns.views.map((v) => viewConstName(v.view))
-            : [];
       const file = s.file.replace(/\.tsx$/, '.js');
-      return `import { ${[...consts, `type ${s.component}Props`].join(', ')} } from '../../domain/${name}/${file}';`;
+      return `import type { ${s.component}Props } from '../../domain/${name}/${file}';`;
     });
+  const columnImports = [
+    ...(needs('list') ? [listColumnsConstName(schema)] : []),
+    ...(needs('grid') ? schema.columns.views.map((v) => viewConstName(v.view)) : []),
+  ].sort();
   const mutationHooks = [
     ...new Set(
       schema.screens.flatMap((s) => {
@@ -260,11 +292,16 @@ export function emitScreenHooks(
     needs('edit') ? `${pascal}Update` : null,
     ...schema.columns.views.map((v) => viewRowType(pascal, v.view)),
   ].filter((v): v is string => v !== null);
+  const needsVersion =
+    needs('edit') || (needs('detail') && detailActions(schema).some((a) => a.kind === 'delete'));
   const supportImports = [
+    needs('edit') ? 'etagFor' : null,
     needs('create') || needs('edit') ? 'fieldErrors' : null,
     'messageOf',
+    needs('create') || needs('edit') ? 'serverFieldErrors' : null,
     'statusOf',
     needs('list') || needs('grid') ? 'useListState' : null,
+    needsVersion ? 'versionedOf' : null,
   ].filter((v): v is string => v !== null);
   return {
     path: `application/${name}/use${pascal}Screens.ts`,
@@ -279,6 +316,9 @@ export function emitScreenHooks(
         ? "import type { operations } from '../../adapters/paths.js';"
         : null,
       "import type { ActionProps } from '../../domain/contract.js';",
+      columnImports.length > 0
+        ? `import { ${columnImports.join(', ')} } from '../../domain/${name}/columns.js';`
+        : null,
       ...screenImports,
       schemaImports.length > 0
         ? `import { ${schemaImports.join(', ')} } from '../../domain/${name}/schemas.js';`
@@ -302,6 +342,8 @@ function detailActions(schema: SchemaPlan): ActionPlan[] {
 function actionLiteral(action: ActionPlan, disabled: string, onClick: string): string {
   return `{ operationId: ${quote(action.id)}, label: t(${quote(action.labelKey)}), disabled: ${disabled}, onClick: ${onClick} }`;
 }
+
+const PAGE_TOTAL = 'result.data?.total ?? result.data?.items.length ?? 0';
 
 function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan): string {
   const { name, pascal } = schema;
@@ -331,13 +373,16 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `    status: statusOf(result, ${can}),`,
         '    error: messageOf(result.error),',
         '    rows: result.data?.items ?? [],',
-        `    columns: ${name.toUpperCase()}_LIST_COLUMNS,`,
-        '    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? 0 },',
+        `    columns: ${listColumnsConstName(schema)},`,
+        `    page: { page: list.page, pageSize: list.pageSize, total: ${PAGE_TOTAL} },`,
         '    sort: list.sort,',
         '    filters: list.filters,',
         '    onPage: list.setPage,',
         '    onSort: list.setSort,',
         '    onFilter: list.setFilter,',
+        '    retry: () => {',
+        '      void result.refetch();',
+        '    },',
         '    actions,',
         '    onOpen: callbacks.onOpen,',
         '  };',
@@ -357,7 +402,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `export function use${pascalCase(view.view)}GridScreen(callbacks: ${pascal}GridCallbacks): ${props} {`,
         `  const can = use${pascal}Capabilities();`,
         `  const list = useListState(${view.limits.default}${initialSort ? `, { field: ${quote(initialSort.field)}, dir: ${quote(initialSort.dir)} }` : ''});`,
-        `  const result = useView<${viewRowType(pascal, view.view)}>(${quote(view.view)}, list.query);`,
+        `  const result = useView<${viewRowType(pascal, view.view)}>(${quote(view.view)}, list.viewQuery);`,
         '  return {',
         `    status: statusOf(result, ${can}),`,
         '    error: messageOf(result.error),',
@@ -365,12 +410,15 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '    rows: result.data?.items ?? [],',
         `    columns: ${viewConstName(view.view)},`,
         `    filterable: [${view.filters.map((f) => quote(f.field)).join(', ')}],`,
-        `    page: { page: list.page, pageSize: list.pageSize, total: result.data?.total ?? 0 },`,
+        `    page: { page: list.page, pageSize: list.pageSize, total: ${PAGE_TOTAL} },`,
         '    sort: list.sort,',
         '    filters: list.filters,',
         '    onPage: list.setPage,',
         '    onSort: list.setSort,',
         '    onFilter: list.setFilter,',
+        '    retry: () => {',
+        '      void result.refetch();',
+        '    },',
         '    actions: [],',
         '    onOpen: callbacks.onOpen,',
         '  };',
@@ -394,12 +442,21 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `  const can = use${pascal}Capabilities();`,
         `  const result = useEntity<${pascal}>(${quote(name)}, id);`,
         remove ? `  const remove = ${hookName(schema, remove)}();` : null,
+        '  const entity = result.data;',
         '  const actions: ActionProps[] = [];',
         update
           ? `  if (can.${update.id}) actions.push(${actionLiteral(update, 'false', `() => { callbacks.onEdit(id); }`)});`
           : null,
         remove
-          ? `  if (can.${remove.id}) actions.push(${actionLiteral(remove, 'remove.isPending', `() => { void remove.mutate({ id }).then(() => { callbacks.onDeleted(); }); }`)});`
+          ? lines([
+              `  if (can.${remove.id}) {`,
+              `    actions.push(${actionLiteral(
+                remove,
+                'remove.loading || entity === undefined',
+                `() =>\n        entity === undefined\n          ? undefined\n          : remove\n              .mutateAsync({ id, doc: versionedOf(entity) })\n              .then(() => {\n                callbacks.onDeleted();\n              })\n              .catch(() => undefined)`,
+              )});`,
+              '  }',
+            ]).trimEnd()
           : null,
         ...customs.map(
           (a) =>
@@ -410,8 +467,11 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         remove
           ? '    error: messageOf(result.error) ?? messageOf(remove.error),'
           : '    error: messageOf(result.error),',
-        '    entity: result.data,',
+        '    entity,',
         '    actions,',
+        '    retry: () => {',
+        '      void result.refetch();',
+        '    },',
         '    onBack: callbacks.onBack,',
         '  };',
         '}',
@@ -424,6 +484,8 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `export interface ${pascal}CreateCallbacks {`,
         `  onCreated: (created: ${responseType(schema, action)}) => void;`,
         '  onCancel: () => void;',
+        '  /** After the agent applied the create (shared/13 §4); omitted, the form stays put. */',
+        '  onAgentApplied?: (result: unknown) => void;',
         '}',
         '',
         `export function use${pascal}CreateScreen(callbacks: ${pascal}CreateCallbacks): ${props} {`,
@@ -433,7 +495,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '  return {',
         '    values,',
         '    errors,',
-        '    pending: create.isPending,',
+        '    pending: create.loading,',
         '    submitError: messageOf(create.error),',
         '    onChange: (field, value) => {',
         '      setValues((previous) => ({ ...previous, [field]: value }));',
@@ -445,9 +507,12 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '        return;',
         '      }',
         '      setErrors({});',
-        '      void create.mutate({ body: parsed.data }).then(callbacks.onCreated);',
+        '      create.mutateAsync({ body: parsed.data }).then(callbacks.onCreated, (error: unknown) => {',
+        '        setErrors(serverFieldErrors(error));',
+        '      });',
         '    },',
         '    onCancel: callbacks.onCancel,',
+        '    onAgentApplied: callbacks.onAgentApplied,',
         '  };',
         '}',
       ]).trimEnd();
@@ -475,28 +540,43 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `  const update = ${hookName(schema, action)}();`,
         `  const [edits, setEdits] = useState<Partial<${pascal}Update>>({});`,
         `  const [errors, setErrors] = useState<Partial<Record<keyof ${pascal}Update, string>>>({});`,
-        `  const values: Partial<${pascal}Update> = { ...(result.data === undefined ? {} : to${pascal}Update(result.data)), ...edits };`,
+        '  const entity = result.data;',
+        `  const values: Partial<${pascal}Update> = { ...(entity === undefined ? {} : to${pascal}Update(entity)), ...edits };`,
         '  return {',
         `    status: statusOf(result, ${can}),`,
         '    error: messageOf(result.error),',
-        '    entity: result.data,',
+        '    entity,',
+        '    // The agent applies an update only with the If-Match of the document the user is editing.',
+        '    ifMatch: etagFor(entity),',
         '    values,',
         '    errors,',
-        '    pending: update.isPending,',
+        '    pending: update.loading,',
         '    submitError: messageOf(update.error),',
         '    onChange: (field, value) => {',
         '      setEdits((previous) => ({ ...previous, [field]: value }));',
         '    },',
         '    onSubmit: () => {',
+        '      if (entity === undefined) return;',
         `      const parsed = ${pascal}UpdateSchema.safeParse(values);`,
         '      if (!parsed.success) {',
         '        setErrors(fieldErrors(parsed.error.issues));',
         '        return;',
         '      }',
         '      setErrors({});',
-        '      void update.mutate({ id, body: parsed.data }).then(callbacks.onSaved);',
+        '      update',
+        '        .mutateAsync({ id, body: parsed.data, doc: versionedOf(entity) })',
+        '        .then(callbacks.onSaved, (error: unknown) => {',
+        '          setErrors(serverFieldErrors(error));',
+        '        });',
         '    },',
         '    onCancel: callbacks.onCancel,',
+        '    retry: () => {',
+        '      void result.refetch();',
+        '    },',
+        '    onAgentApplied: () => {',
+        '      setEdits({});',
+        '      void result.refetch();',
+        '    },',
         '  };',
         '}',
       ]).trimEnd();
@@ -521,12 +601,12 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
           ? '  const [result, setResult] = useState<unknown>(undefined);'
           : '  const result: unknown = undefined;',
         runnable
-          ? `  const action: ActionProps | undefined = can.${action.id}\n    ? ${actionLiteral(action, 'run.isPending', `() => { void run.mutate(${input}).then(setResult); }`)}\n    : undefined;`
+          ? `  const action: ActionProps | undefined = can.${action.id}\n    ? ${actionLiteral(action, 'run.loading', `() =>\n          run\n            .mutateAsync(${input})\n            .then(setResult)\n            .catch(() => undefined)`)}\n    : undefined;`
           : '  const action: ActionProps | undefined = undefined;',
         '  return {',
         `    status: can.${action.id} ? 'ready' : 'forbidden',`,
         runnable ? '    error: messageOf(run.error),' : '    error: undefined,',
-        runnable ? '    pending: run.isPending,' : '    pending: false,',
+        runnable ? '    pending: run.loading,' : '    pending: false,',
         '    result,',
         '    action,',
         '    onBack: callbacks.onBack,',

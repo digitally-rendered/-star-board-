@@ -14,4 +14,4 @@ export { loadSource, loadModel, isHttpUrl } from './source.js';
 export type { Io, Context } from './io.js';
 export { INIT_FILES, skeleton } from './commands/init.js';
 export { TOKEN_OUTPUTS, resolveModes } from './commands/tokens.js';
-export { PARITY_MESSAGE } from './commands/parity.js';
+export { formatReport, parseMcpTools, readGeneratedTree } from './commands/parity.js';

@@ -89,11 +89,12 @@ export function buildProgram(io: Io, onExit: (code: ExitCode) => void): Command 
       onExit(runTokensLint(contextFor(io, command), command.optsWithGlobals()));
     });
 
-  program
-    .command('parity')
-    .description('document ↔ generated ↔ MCP tools/list parity (placeholder)')
-    .action((_options: unknown, command: Command) => {
-      onExit(runParity(contextFor(io, command)));
+  documentOptions(program.command('parity'))
+    .description('document ↔ generated tree ↔ MCP tools/list parity; exit 1 on any disagreement')
+    .option('--mcp-tools <file>', 'a tools/list result (JSON array or { "tools": [...] })')
+    .option('--no-i18n', 'match a generate run that used --no-i18n')
+    .action(async (_options: unknown, command: Command) => {
+      onExit(await runParity(contextFor(io, command), command.optsWithGlobals()));
     });
 
   return program;
