@@ -1,7 +1,7 @@
 {
   "name": "@star-board/tokens",
   "version": "0.0.1",
-  "description": "Design tokens (DTCG JSON): schema, semantic alias lint, modes; style-dictionary build to the MUI CSS-variables theme, Figma variables JSON, the component contract and the Code Connect map.",
+  "description": "Design tokens (DTCG JSON): schema, alias resolution, semantic lint, modes; a deterministic build to the MUI CSS-variables theme input, Figma variables JSON, the component contract and the Code Connect map.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -27,9 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@star-board/core": "workspace:*",
-    "style-dictionary": "5.6.0",
-    "@tokens-studio/sd-transforms": "2.0.3"
+    "@star-board/core": "workspace:*"
   },
   "star-board": {
     "layer": "L1"

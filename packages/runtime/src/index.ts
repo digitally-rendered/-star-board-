@@ -1,3 +1,85 @@
 /** @star-board/runtime — L2. React runtime: RegistryProvider, ServicesProvider, typed client factory, data hooks on TanStack Query, capability gating, error presentation, i18n keys, agent affordance port. */
 export const PACKAGE = '@star-board/runtime' as const;
 export const LAYER = 'L2' as const;
+
+export type { AgentPort, AuthPort, NotifyLevel, NotifyPort, Principal } from './ports.js';
+export {
+  createAuthMiddleware,
+  createClient,
+  IF_MATCH,
+  type ClientOptions,
+  type HttpClient,
+  type HttpMethod,
+  type UntypedOperation,
+  type UntypedPaths,
+} from './client/createClient.js';
+export {
+  DEFAULT_CODES,
+  defaultCodeFor,
+  HttpError,
+  isHttpError,
+  parseProblem,
+  problemFromBody,
+  type ProblemDetails,
+} from './client/errors.js';
+export { etagOf, type Versioned } from './client/etag.js';
+export {
+  ServicesProvider,
+  useOperations,
+  useServices,
+  type Services,
+} from './services/ServicesProvider.js';
+export {
+  RegistryProvider,
+  ScopeProvider,
+  useComponent,
+  useRegistry,
+  useScope,
+} from './registry/RegistryProvider.js';
+export {
+  normalise,
+  queryKeys,
+  type ListQuery,
+  type QueryKey,
+  type ViewQuery,
+} from './data/queryKeys.js';
+export {
+  createOperationsPort,
+  DEFAULT_PAGE_SIZE,
+  listParams,
+  toPage,
+  type MutateInput,
+  type OperationsPort,
+  type Page,
+} from './data/operations.js';
+export {
+  useEntity,
+  useEntityList,
+  useMutation,
+  useView,
+  type MutationOptions,
+  type MutationState,
+  type MutationVariables,
+  type QueryState,
+} from './data/hooks.js';
+export {
+  filterOperations,
+  hasCapabilities,
+  useCapabilities,
+  useCapability,
+} from './capability/useCapability.js';
+export {
+  presentError,
+  useErrorPresentation,
+  type ErrorKind,
+  type ErrorPresentation,
+  type Posture,
+} from './errors/useErrorPresentation.js';
+export {
+  createI18n,
+  I18nProvider,
+  RUNTIME_DEFAULT_MESSAGES,
+  useI18n,
+  type I18n,
+  type Translate,
+} from './i18n/createI18n.js';

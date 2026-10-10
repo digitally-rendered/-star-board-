@@ -27,8 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@star-board/core": "workspace:*",
-    "@redocly/openapi-core": "2.62.1"
+    "@star-board/core": "workspace:*"
   },
   "star-board": {
     "layer": "L1"
