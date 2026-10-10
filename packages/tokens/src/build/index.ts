@@ -11,7 +11,7 @@ import { buildMuiThemeInput, type MuiThemeInput } from './mui-theme.js';
  * Bumped whenever an output format changes, so a committed build that disagrees with the
  * current builder fails the drift check (`codegen:check`) even when the tokens did not move.
  */
-export const BUILD_VERSION = '1.0.0' as const;
+export const BUILD_VERSION = '1.1.0' as const;
 
 export interface BuildOutput {
   readonly version: typeof BUILD_VERSION;

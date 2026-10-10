@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`emitCodeConnect > matches the snapshot for field.text 1`] = `
+"// Generated from contract.json by @star-board/tokens; do not edit (\`star-board tokens map-components\`).
+// Contract key: field.text. Figma component: Text field.
+// Replace <node-id> with the component's node id in the design file.
+import figma from '@figma/code-connect';
+import { TextField } from '@star-board/renderer-mui';
+
+figma.connect(TextField, 'https://www.figma.com/design/FILEKEY/star-board?node-id=<node-id>', {
+  props: {
+    disabled: figma.boolean("Disabled"),
+    error: figma.boolean("Error"),
+    helperText: figma.string("Helper text"),
+    label: figma.string("Label"),
+    required: figma.boolean("Required"),
+  },
+  example: (props) => <TextField {...props} />,
+});
+"
+`;

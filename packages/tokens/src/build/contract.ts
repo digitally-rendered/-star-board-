@@ -16,6 +16,12 @@ export interface ContractRow {
   readonly key: string;
   readonly figmaComponent: string;
   readonly renderer: 'default';
+  /**
+   * Export name of the default renderer's component for this key, as data: the Code Connect
+   * emitter imports it from the renderer package. Tokens (L1) never imports the renderer (L3);
+   * the renderer's parity test holds this table to its `DEFAULT_COMPONENTS` map.
+   */
+  readonly componentName: string;
   /** Semantic token paths (never primitives — `lintTokens` checks). */
   readonly tokens: readonly string[];
 }
@@ -42,6 +48,42 @@ const FIELD_COMPONENTS: Readonly<Record<(typeof FIELD_KINDS)[number], string>> =
   reference: 'Entity picker',
 };
 
+/**
+ * Default renderer export per fixed key (`@star-board/renderer-mui`), kept here as data so the
+ * Code Connect files can be generated without importing React or the renderer.
+ */
+export const COMPONENT_NAMES: Readonly<Record<string, string>> = {
+  'field.text': 'TextField',
+  'field.select': 'SelectField',
+  'field.datetime': 'DateTimeField',
+  'field.number': 'NumberField',
+  'field.boolean': 'BooleanField',
+  'field.tags': 'TagsField',
+  'field.subform': 'SubformField',
+  'field.reference': 'ReferenceField',
+  'action.create': 'CreateAction',
+  'action.update': 'UpdateAction',
+  'action.delete': 'DeleteAction',
+  'action.custom': 'CustomAction',
+  'state.empty': 'EmptyState',
+  'state.loading': 'LoadingState',
+  'state.error': 'ErrorState',
+  'state.forbidden': 'ForbiddenState',
+  'screen.list': 'ListScreen',
+  'screen.grid': 'GridScreen',
+  'screen.detail': 'DetailScreen',
+  'screen.create': 'CreateScreen',
+  'screen.edit': 'EditScreen',
+  'screen.custom': 'CustomScreen',
+  'help.inline': 'InlineHelp',
+  'list.column.string': 'StringCell',
+  'list.column.number': 'NumberCell',
+  'list.column.boolean': 'BooleanCell',
+  'list.column.date-time': 'DateTimeCell',
+  'list.column.enum': 'EnumCell',
+  'list.column.reference': 'ReferenceCell',
+};
+
 const FIELD_TOKENS = [
   'color.surface.default',
   'color.text.danger',
@@ -60,7 +102,11 @@ function sorted(paths: readonly string[]): readonly string[] {
 }
 
 function row(key: string, figmaComponent: string, tokens: readonly string[]): ContractRow {
-  return { key, figmaComponent, renderer: 'default', tokens: sorted(tokens) };
+  const componentName = COMPONENT_NAMES[key];
+  if (componentName === undefined) {
+    throw new Error(`No renderer component name for contract key '${key}'`);
+  }
+  return { key, figmaComponent, renderer: 'default', componentName, tokens: sorted(tokens) };
 }
 
 function rowFor(key: string): ContractRow {

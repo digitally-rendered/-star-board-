@@ -1,0 +1,14 @@
+{
+  "$comment": "Project .claude/settings.json fragment for the Figma MCP server registered as `figma` in .mcp.json (hexagonal-rules templates/settings-permissions-design.json; typescript/13 §4). An .mcp.json entry cannot make a server read-only; this allowlist is the enforceable mechanism. Pre-approve only the tools that read a design: metadata, node context, variables, styles, screenshots, component search. The `get_*` and `list_*` entries are placeholders for the server's exact read-tool names and `*` is not a glob: replace each with the real name and keep the list exact. Tools that create or change nodes, variables, components or files, publish, comment or export (use_*, create_*, update_*, generate_*) stay prompted; never allow `mcp__figma` or `mcp__figma__*`. Build-brain only: project-scoped, absent from production config, fixtures only, never record data. packages/tokens/src/figma/design-permissions.test.ts holds this file to the read-only rule.",
+  "permissions": {
+    "allow": [
+      "mcp__figma__get_metadata",
+      "mcp__figma__get_design_context",
+      "mcp__figma__get_variable_defs",
+      "mcp__figma__get_screenshot",
+      "mcp__figma__get_code_connect_map",
+      "mcp__figma__get_*",
+      "mcp__figma__list_*"
+    ]
+  }
+}

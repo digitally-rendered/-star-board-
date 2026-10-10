@@ -11,3 +11,4 @@ export * from './build/css-variables.js';
 export * from './build/mui-theme.js';
 export * from './build/figma-variables.js';
 export * from './build/index.js';
+export * from './figma/index.js';

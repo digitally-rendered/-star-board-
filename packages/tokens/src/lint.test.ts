@@ -62,6 +62,7 @@ describe('lintTokens', () => {
         key: 'field.text',
         figmaComponent: 'Text field',
         renderer: 'default' as const,
+        componentName: 'TextField',
         tokens: ['color.primitive.blue.500', 'color.nope'],
       },
     ];

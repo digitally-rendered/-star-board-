@@ -48,10 +48,44 @@ whose first entry is the default (`light`) and which every semantic colour token
 `data-mode` and `data-density` on the document root, which compose. MUI's `colorSchemes` only
 knows `light` and `dark`; other colour modes are CSS-only and switch the same variables.
 
+## Figma adapter
+
+`src/figma/` is the design-tool side of the hexagon (`typescript/13` §1 and §4; `docs/figma.md`
+explains the flow). It is plain TypeScript over JSON: no Figma SDK, no `@figma/code-connect`
+dependency.
+
+| Export                                                         | Role                                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TokenSourcePort`, `DesignFilePort`, `CodeMappingPort`         | the ports; `FigmaVariablesDocument` is the `buildFigmaVariables` output                                                                                                                                          |
+| `JsonFileTokenSource(path)`, `InMemoryTokenSource`             | `TokenSourcePort` over the plugin-compatible JSON file (pull validates with `parseFigmaVariables`, fail closed) and in memory for tests                                                                          |
+| `figmaVariablesToTokens(doc, { types? })`                      | the inverse of `buildFigmaVariables`: collections back into DTCG tokens with `$extensions['star-board'].modes` and `{alias}` entries restored to `{path}` references; `figmaVariablesToTokenJson` gives the JSON |
+| `syncTokens({ tokens, source, direction, modes })`             | push: lint, build, `source.push`; pull: `source.pull` → tokens → lint (fail closed, `TOKENS_INVALID` with findings) → `{ tokens, findings, changed }`; never writes the local file                               |
+| `emitCodeConnect(contract, { rendererPackage, figmaFileUrl })` | `{ path: 'codeconnect/<key>.figma.tsx', contents }[]` in the shape `@figma/code-connect` React consumes, one per contract key, importing `componentName` from the renderer package                               |
+| `emitCodeConnectConfig()`                                      | `figma.config.json` text: React parser over `codeconnect/**`                                                                                                                                                     |
+
+### Round-trip exclusions
+
+`figmaVariablesToTokens(buildFigmaVariables(set))` deep-equals `set` for the reference tokens
+and for generated sets (property test). The variables document carries less than DTCG does, so
+these are excluded by design:
+
+- `$description` and other DTCG metadata: no field in the document.
+- The DTCG `$type` behind a Figma type: `FLOAT` returns as `dimension` in `px` and `STRING` as
+  `fontFamily` (or `shadow` when the text parses as one) unless `types` names the path.
+  `syncTokens` passes the local set's types, so `number` and `duration` survive a pull;
+  `rem` dimensions come back in `px`.
+- A single-entry `fontFamily` array returns as a plain string (both serialise the same).
+- A non-colour semantic token whose mode value equals its default loses that redundant entry.
+  Semantic colour tokens keep every mode because the lint requires them.
+- A token themed on both axes (colour scheme and density) lives in the density collection only,
+  so its colour-scheme modes are not carried.
+
 ## Checks
 
 Tests (`pnpm -F @star-board/tokens test`) parse the reference set, cover alias resolution
 (chain, cycle, depth, unknown target, type mismatch), each lint rule, determinism of `build`,
-the no-literal-colour rule on the MUI theme, every mode on the Figma variables and a contract
-row for every component key. `BUILD_VERSION` is part of the output so `codegen:check` catches a
+the no-literal-colour rule on the MUI theme, every mode on the Figma variables, a contract
+row with a component name for every component key, the Figma round trip (reference exact and a
+fast-check property), `syncTokens` in both directions with fail-closed pulls, the Code Connect
+emission (one file per key, a snapshot) and the read-only rule on `docs/design-permissions.json`. `BUILD_VERSION` is part of the output so `codegen:check` catches a
 builder change as drift even when the tokens did not move.

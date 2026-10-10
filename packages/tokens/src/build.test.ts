@@ -164,6 +164,7 @@ describe('buildContract', () => {
     expect(keys).toEqual([...keys].sort());
     for (const row of contract) {
       expect(row.renderer).toBe('default');
+      expect(row.componentName).toMatch(/^[A-Z][A-Za-z]+$/);
       expect(row.tokens.length).toBeGreaterThan(0);
       expect(row.tokens.some((t) => t.includes('primitive'))).toBe(false);
     }
@@ -176,6 +177,19 @@ describe('buildContract', () => {
     expect(byKey.get('help.inline')).toBe('Help text');
     expect(byKey.get('action.delete')).toBe('Button / delete');
     expect(byKey.get('list.column.date-time')).toBe('Table cell / date-time');
+  });
+
+  it('names a distinct renderer component for every row', () => {
+    const contract = buildContract();
+    const names = contract.map((r) => r.componentName);
+    expect(new Set(names).size).toBe(contract.length);
+    const byKey = new Map(contract.map((r) => [r.key, r.componentName]));
+    expect(byKey.get('field.text')).toBe('TextField');
+    expect(byKey.get('list.column.date-time')).toBe('DateTimeCell');
+    expect(byKey.get('action.delete')).toBe('DeleteAction');
+    expect(byKey.get('state.forbidden')).toBe('ForbiddenState');
+    expect(byKey.get('screen.custom')).toBe('CustomScreen');
+    expect(byKey.get('help.inline')).toBe('InlineHelp');
   });
 });
 
