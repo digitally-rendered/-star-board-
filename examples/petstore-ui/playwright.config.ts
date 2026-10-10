@@ -7,7 +7,8 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: false,
-  use: { baseURL: 'http://localhost:4173', trace: 'retain-on-failure' },
+  // reducedMotion: MUI transitions end immediately, so axe never measures a fading menu.
+  use: { baseURL: 'http://localhost:4173', trace: 'retain-on-failure', reducedMotion: 'reduce' },
   webServer: {
     command: 'pnpm dev --port 4173 --strictPort',
     url: 'http://localhost:4173',

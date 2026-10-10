@@ -21,6 +21,8 @@ async function axeClean(page: Page): Promise<void> {
 async function selectOption(page: Page, field: string, value: string): Promise<void> {
   await page.getByTestId(`field-${field}`).getByRole('combobox').click();
   await page.getByTestId(`field-${field}-option-${value}`).click();
+  // The menu must be gone before the next step runs axe over the page.
+  await expect(page.getByRole('listbox')).toBeHidden();
 }
 
 test('petstore workflow with zero backend', async ({ page }) => {
