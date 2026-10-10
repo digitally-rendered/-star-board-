@@ -17,4 +17,4 @@ export { registerGenerated } from './registry.js';
 export { createGeneratedRegistry } from './setup.js';
 export { routes } from './routes.js';
 export { nav, type NavEntry } from './nav.js';
-export { t, type I18nKey } from './i18n.js';
+export { t, useT, type I18nKey, type T, type Vars } from './i18n.js';

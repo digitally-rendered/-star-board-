@@ -75,6 +75,45 @@ describe('golden output for fixtures/petstore.json', () => {
     }
   });
 
+  it('applies the platform rules of typescript/05 to the forms and tables', () => {
+    const create = file(files, 'domain/pet/PetCreateScreen.tsx');
+    const edit = file(files, 'domain/pet/PetEditScreen.tsx');
+    const list = file(files, 'domain/pet/PetListScreen.tsx');
+    const routes = file(files, 'routes.tsx');
+    const i18n = JSON.parse(file(files, 'i18n.defaults.json')) as Record<string, string>;
+    // §4 regulated wording: an empty disclaimer key per form, rendered through help.inline when set.
+    expect(i18n['pet.screen.create.disclaimer']).toBe('');
+    expect(i18n['pet.screen.edit.disclaimer']).toBe('');
+    for (const form of [create, edit]) {
+      expect(form).toContain("useResolved<HelpProps>('help.inline', 'pet'");
+      expect(form).toMatch(/const disclaimer = t\('pet\.screen\.(create|edit)\.disclaimer'\);/);
+      expect(form).toContain('dirty: boolean;');
+    }
+    // §9 unsaved changes: the create and edit containers hold navigation and release it on save.
+    expect(routes.match(/useUnsavedChanges\(props\.dirty\)/g)).toHaveLength(2);
+    expect(routes).toContain(
+      "useOptionalResolved<UnsavedChangesDialogProps>('screen.custom', 'pet', 'unsaved-changes')",
+    );
+    expect(routes).toContain('unsaved.release(() => void navigate(`/pet/${created.entity_id}`))');
+    expect(routes).toContain('unsaved.release(() => void navigate(`/pet/${id}`))');
+    expect(routes).not.toMatch(/PetListRoute\(\): ReactElement \{[^}]*unsaved/);
+    expect(file(files, 'domain/contract.ts')).toContain('export function useOptionalResolved<P>(');
+    // §6 mobile: the table screens take `compact` and render the card list under the breakpoint,
+    // keeping the table's page-object ids.
+    expect(list).toContain('props.compact ? (');
+    expect(list).toContain('data-testid="pet-list-table" data-layout="cards"');
+    expect(list).toContain('const cards = cardFields(props.columns);');
+    expect(file(files, 'application/pet/usePetScreens.ts')).toContain(
+      'const compact = useCompactLayout();',
+    );
+    // §7 i18n: components read `t` from the provider, so a locale switch reaches them.
+    for (const screen of [create, edit, list, file(files, 'domain/pet/PetDetailScreen.tsx')]) {
+      expect(screen).toContain('const t = useT();');
+      expect(screen).not.toContain('import { t }');
+    }
+    expect(file(files, 'i18n.ts')).toContain('export function useT(): T {');
+  });
+
   it('places the agent affordance slot on the create and edit screens only', () => {
     expect(file(files, 'domain/pet/PetCreateScreen.tsx')).toContain('<AgentPanelSlot');
     expect(file(files, 'domain/pet/PetEditScreen.tsx')).toContain('<AgentPanelSlot');

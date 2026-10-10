@@ -1,4 +1,4 @@
-/** @star-board/runtime — L2. React runtime: RegistryProvider, ServicesProvider, typed client factory, data hooks on TanStack Query, capability gating, error presentation, i18n keys, agent affordance port. */
+/** @star-board/runtime — L2. React runtime: RegistryProvider, ServicesProvider, typed client factory, data hooks on TanStack Query, capability gating, error presentation, i18n keys, platform primitives (unsaved changes, session timeout, compact layout), agent affordance port. */
 export const PACKAGE = '@star-board/runtime' as const;
 export const LAYER = 'L2' as const;
 
@@ -77,12 +77,32 @@ export {
 } from './errors/useErrorPresentation.js';
 export {
   createI18n,
+  DEFAULT_LOCALE,
+  defaultLocale,
   I18nProvider,
   RUNTIME_DEFAULT_MESSAGES,
   useI18n,
   type I18n,
+  type I18nOptions,
+  type I18nProviderProps,
   type Translate,
+  type Vars,
 } from './i18n/createI18n.js';
+export { useUnsavedChanges, type UnsavedChanges } from './platform/useUnsavedChanges.js';
+export {
+  ACTIVITY_EVENTS,
+  ACTIVITY_THROTTLE_MS,
+  useSessionTimeout,
+  type SessionTimeout,
+  type SessionTimeoutOptions,
+  type SessionTimeoutState,
+} from './platform/useSessionTimeout.js';
+export {
+  COMPACT_BREAKPOINT_PX,
+  COMPACT_MEDIA_QUERY,
+  useCompactLayout,
+  useMediaQuery,
+} from './platform/useMediaQuery.js';
 export {
   AGENT_HELPER_PREFIXES,
   AgentAuditLog,

@@ -76,11 +76,15 @@ export function createAppRegistry(): ComponentRegistry {
   return registry;
 }
 
-/** Runtime and renderer strings under the generated defaults; a translation table layers on top. */
-export function createAppI18n(translations: Record<string, string> = {}): I18n {
+/**
+ * Runtime and renderer strings under the generated defaults; a translation table layers on top
+ * and `locale` drives the formatters (typescript/05 §7).
+ */
+export function createAppI18n(translations: Record<string, string> = {}, locale?: string): I18n {
   return createI18n(
     { ...RUNTIME_DEFAULT_MESSAGES, ...RENDERER_DEFAULT_MESSAGES, ...i18nDefaults },
     translations,
+    locale === undefined ? {} : { locale },
   );
 }
 
@@ -142,6 +146,10 @@ export function appRoutes(): RouteObject[] {
 export interface AppProps {
   model: FeatureModel;
   baseUrl?: string;
+  /** The i18n locale; default the browser's. */
+  locale?: string;
+  /** Translations by key over the generated, renderer and runtime defaults. */
+  messages?: Record<string, string>;
 }
 
 export function App(props: AppProps): ReactElement {
@@ -153,7 +161,7 @@ export function App(props: AppProps): ReactElement {
     <AppProviders
       services={services}
       registry={createAppRegistry()}
-      i18n={createAppI18n()}
+      i18n={createAppI18n(props.messages, props.locale)}
       theme={createAppTheme()}
       queryClient={createQueryClient()}
     >

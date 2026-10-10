@@ -34,6 +34,7 @@ const listProps: PetListScreenProps = {
   page: { page: 1, pageSize: 25, total: 2 },
   sort: undefined,
   filters: {},
+  compact: false,
   onPage: vi.fn(),
   onSort: vi.fn(),
   onFilter: vi.fn(),
@@ -44,6 +45,7 @@ const listProps: PetListScreenProps = {
 const createProps: PetCreateScreenProps = {
   values: { name: 'Rex' },
   errors: {},
+  dirty: false,
   pending: false,
   submitError: undefined,
   onChange: vi.fn(),

@@ -36,6 +36,25 @@ describe('screen shells', () => {
     await expectNoViolations(container);
   });
 
+  it('embedded: no main landmark or h1, a section labelled by its one h2', async () => {
+    const { container } = render(
+      <ScreenShell title="Pets" embedded actions={<button type="button">New</button>}>
+        <p>body</p>
+      </ScreenShell>,
+    );
+    expect(screen.queryByRole('main')).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    const headings = screen.getAllByRole('heading', { level: 2 });
+    expect(headings).toHaveLength(1);
+    const section = screen.getByRole('region', { name: 'Pets' });
+    expect(section.tagName).toBe('SECTION');
+    expect(section.getAttribute('aria-labelledby')).toBe(headings[0]?.id);
+    expect(section.id).toBe('');
+    expect(section.getAttribute('data-embedded')).toBe('true');
+    expect(document.getElementById(MAIN_CONTENT_ID)).toBeNull();
+    await expectNoViolations(container);
+  });
+
   it('omits breadcrumbs and the actions group when not given', () => {
     render(<ScreenShell title="Pets">body</ScreenShell>);
     expect(screen.queryByRole('navigation')).toBeNull();

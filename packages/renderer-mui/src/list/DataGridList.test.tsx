@@ -11,7 +11,7 @@ import {
   ReferenceCell,
   StringCell,
 } from './columns.js';
-import { DataGridList, toColDef } from './DataGridList.js';
+import { COMPACT_CARD_COLUMNS, DataGridList, toColDef } from './DataGridList.js';
 
 interface Pet extends Record<string, unknown> {
   id: string;
@@ -159,6 +159,84 @@ describe('DataGridList', () => {
     );
     expect(screen.queryByRole('region')).toBeNull();
     expect(document.querySelector('.MuiDataGrid-skeletonLoadingOverlay')).not.toBeNull();
+  });
+
+  it('compact: one card per row with the first three columns, the row action and a pager', async () => {
+    const { container, onRowClick, onPage } = renderGrid({ compact: true });
+    expect(screen.queryByRole('grid')).toBeNull();
+    const list = screen.getByTestId('data-grid-list');
+    expect(list.getAttribute('data-compact')).toBe('true');
+    const cards = screen.getAllByTestId(/^data-grid-card-/);
+    expect(cards).toHaveLength(rows.length);
+    const first = cards[0];
+    if (first === undefined) throw new Error('no card');
+    // Labelled values for the first columns only; the rest stay off the card.
+    const labels = within(first)
+      .getAllByRole('term')
+      .map((dt) => dt.textContent);
+    expect(labels).toEqual(columns.slice(0, COMPACT_CARD_COLUMNS).map((c) => c.headerName));
+    expect(within(first).getByText('Rex')).toBeTruthy();
+    expect(within(first).queryByText('Dog')).toBeNull();
+    await userEvent.click(within(first).getByTestId('data-grid-open-1'));
+    expect(onRowClick).toHaveBeenCalledWith(rows[0]);
+    await userEvent.click(screen.getByRole('button', { name: /next page/i }));
+    expect(onPage).toHaveBeenCalledWith(1);
+    await expectNoViolations(container);
+  });
+
+  it('compact: empty and loading states, no row action without onRowClick', () => {
+    const { rerender } = renderGrid({ compact: true, rows: [], total: 0 });
+    expect(screen.getByRole('region', { name: 'No pets yet' })).toBeTruthy();
+    rerender(
+      <DataGridList<Pet>
+        rows={rows}
+        columns={columns}
+        total={2}
+        page={0}
+        pageSize={10}
+        getRowId={(row) => row.id}
+        emptyLabel="No pets yet"
+        compact
+        loading
+        {...handlers()}
+      />,
+    );
+    expect(screen.getByRole('status').getAttribute('aria-busy')).toBe('true');
+    rerender(
+      <DataGridList<Pet>
+        rows={rows}
+        columns={columns}
+        total={2}
+        page={0}
+        pageSize={10}
+        getRowId={(row) => row.id}
+        emptyLabel="No pets yet"
+        compact
+        onPage={vi.fn()}
+        onSort={vi.fn()}
+        onFilter={vi.fn()}
+      />,
+    );
+    expect(screen.queryAllByTestId(/^data-grid-open-/)).toHaveLength(0);
+  });
+
+  it('follows the viewport when compact is unset', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })),
+    );
+    try {
+      renderGrid();
+      expect(screen.getByTestId('data-grid-list').getAttribute('data-compact')).toBe('true');
+      expect(screen.queryByRole('grid')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('maps column descriptors to DataGrid column definitions', () => {

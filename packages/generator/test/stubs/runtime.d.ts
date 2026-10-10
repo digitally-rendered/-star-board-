@@ -96,11 +96,31 @@ export declare function createClient<Paths extends object = Record<string, unkno
   auth: AuthPort,
   opts?: ClientOptions,
 ): Client<Paths>;
+export type Vars = Record<string, string | number>;
+export interface Translate {
+  (key: string, vars?: Vars): string;
+  plural(key: string, count: number, vars?: Vars): string;
+  date(value: Date | string | number, options?: Intl.DateTimeFormatOptions): string;
+  number(value: number, options?: Intl.NumberFormatOptions): string;
+  readonly locale: string;
+}
 export interface I18n {
-  t(key: string, vars?: Record<string, string | number>): string;
+  t: Translate;
+  readonly locale: string;
+  extend(translations: Record<string, string>, locale?: string): I18n;
   has(key: string): boolean;
 }
 export declare function createI18n(
   defaults: Record<string, string>,
   translations?: Record<string, string>,
+  options?: { locale?: string },
 ): I18n;
+export declare function useI18n(): I18n;
+export interface UnsavedChanges {
+  blocked: boolean;
+  stay: () => void;
+  leave: () => void;
+  release: <T>(navigate: () => T) => T;
+}
+export declare function useUnsavedChanges(isDirty: boolean): UnsavedChanges;
+export declare function useCompactLayout(): boolean;

@@ -43,6 +43,11 @@ export function fieldErrors(
   return errors;
 }
 
+/** A form is dirty once any value was set (typescript/05 §9: unsaved changes hold navigation). */
+export function isDirty(values: Readonly<Record<string, unknown>>): boolean {
+  return Object.values(values).some((value) => value !== undefined);
+}
+
 /** The per-field messages of a 422 response (RFC 7807 `errors` or the envelope `details`). */
 export function serverFieldErrors(error: unknown): Record<string, string> {
   return isHttpError(error) && error.fields !== undefined ? { ...error.fields } : {};

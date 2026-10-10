@@ -59,17 +59,23 @@ describe('createHarness', () => {
     expect(harness.i18n.t('agent.title')).toBe('Ask the agent');
   });
 
-  it('uses a supplied registry and principal as given, and layers messages', () => {
+  it('uses a supplied registry and principal as given, and layers messages in a locale', () => {
     const registry = new ComponentRegistry();
+    const onUnauthorized = () => undefined;
     const harness = createHarness({
       model,
       registry,
       principal: null,
       messages: { 'pet.nav.label': 'Pets' },
+      locale: 'de-DE',
+      onUnauthorized,
     });
     expect(harness.registry).toBe(registry);
     expect(harness.principal).toBeNull();
     expect(harness.i18n.t('pet.nav.label')).toBe('Pets');
+    expect(harness.i18n.locale).toBe('de-DE');
+    expect(harness.i18n.t.number(1.5)).toBe('1,5');
+    expect(harness.services.auth.onUnauthorized).toBe(onUnauthorized);
     expect(HARNESS_BASE_URL.startsWith('http://')).toBe(true);
   });
 });

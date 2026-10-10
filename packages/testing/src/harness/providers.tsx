@@ -45,6 +45,10 @@ export interface HarnessOptions {
   baseUrl?: string;
   /** Message defaults layered over the runtime and renderer ones (the generated `i18n.defaults.json`). */
   messages?: Record<string, string>;
+  /** The i18n locale (formatters and plural rules); default the runtime's. */
+  locale?: string;
+  /** Observes the 401 path: called by the client middleware once per unauthorized response. */
+  onUnauthorized?: () => void;
   agent?: AgentPort;
   /** The tokens theme; without it MUI renders with its built-in theme. */
   theme?: Pick<ThemeRootProps, 'theme' | 'cssVariables'>;
@@ -75,7 +79,7 @@ export function createHarness(options: HarnessOptions): Harness {
   const auth: Services['auth'] = {
     getToken: () => Promise.resolve(null),
     getPrincipal: () => principal,
-    onUnauthorized: () => undefined,
+    onUnauthorized: options.onUnauthorized ?? (() => undefined),
   };
   const services: Services = {
     client: createClient(options.baseUrl ?? HARNESS_BASE_URL, auth),
@@ -90,11 +94,15 @@ export function createHarness(options: HarnessOptions): Harness {
     registerDefaults(registry);
     options.register?.(registry);
   }
-  const i18n = createI18n({
-    ...RUNTIME_DEFAULT_MESSAGES,
-    ...RENDERER_DEFAULT_MESSAGES,
-    ...(options.messages ?? {}),
-  });
+  const i18n = createI18n(
+    {
+      ...RUNTIME_DEFAULT_MESSAGES,
+      ...RENDERER_DEFAULT_MESSAGES,
+      ...(options.messages ?? {}),
+    },
+    {},
+    options.locale === undefined ? {} : { locale: options.locale },
+  );
   const queryClient = options.queryClient ?? createQueryClient();
   const theme = options.theme;
   const resolved = registry;

@@ -33,6 +33,10 @@ describe('runtime surface', () => {
       'createI18n',
       'I18nProvider',
       'useI18n',
+      'useUnsavedChanges',
+      'useSessionTimeout',
+      'useMediaQuery',
+      'useCompactLayout',
     ] as const;
     for (const name of fns) expect(typeof runtime[name], name).toBe('function');
     expect(runtime.queryKeys.all()).toEqual(['star-board']);

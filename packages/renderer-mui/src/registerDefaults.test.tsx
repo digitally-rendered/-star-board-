@@ -3,6 +3,7 @@ import { LIST_COLUMN_TYPES } from '@star-board/tokens';
 import { describe, expect, it } from 'vitest';
 import { stories } from './manifest.js';
 import { AGENT_PANEL_TARGET, AgentPanel } from './agent/AgentPanel.js';
+import { UNSAVED_CHANGES_TARGET, UnsavedChangesDialog } from './dialogs/UnsavedChangesDialog.js';
 import { DEFAULT_COMPONENTS, EXTRA_REGISTRATIONS, registerDefaults } from './registerDefaults.js';
 import { CustomScreen } from './screens/ScreenShell.js';
 
@@ -26,7 +27,8 @@ describe('registerDefaults — parity with the component contract', () => {
       expect(registration.specificity).toBe(1);
       expect(typeof registration.component).toBe('function');
     }
-    // one registration per key plus the target-exact agent panel
+    // one registration per key plus the target-exact agent panel and unsaved-changes dialog
+    expect(EXTRA_REGISTRATIONS).toBe(2);
     expect(registry.size).toBe(CONTRACT_KEYS.length + EXTRA_REGISTRATIONS);
   });
 
@@ -39,6 +41,18 @@ describe('registerDefaults — parity with the component contract', () => {
     expect(panel.schema).toBe('*');
     expect(panel.source).toBe('generated');
     expect(registry.resolve('screen.custom', 'pet', 'anything').component).toBe(CustomScreen);
+  });
+
+  it('registers the unsaved-changes dialog for screen.custom at target unsaved-changes only', () => {
+    const registry = new ComponentRegistry();
+    registerDefaults(registry);
+    const dialog = registry.resolve('screen.custom', 'pet', UNSAVED_CHANGES_TARGET, {
+      role: 'any',
+    });
+    expect(dialog.component).toBe(UnsavedChangesDialog);
+    expect(dialog.target).toBe(UNSAVED_CHANGES_TARGET);
+    expect(dialog.source).toBe('generated');
+    expect(registry.resolve('screen.custom', 'pet', AGENT_PANEL_TARGET).component).toBe(AgentPanel);
   });
 
   it('implements exactly the contract keys, no more', () => {

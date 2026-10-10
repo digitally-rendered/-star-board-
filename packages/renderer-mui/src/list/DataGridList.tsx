@@ -1,4 +1,12 @@
 import { useCallback, useMemo } from 'react';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import CardContent from '@mui/material/CardContent';
+import Stack from '@mui/material/Stack';
+import TablePagination from '@mui/material/TablePagination';
+import Typography from '@mui/material/Typography';
 import {
   DataGrid,
   type GridColDef,
@@ -7,10 +15,12 @@ import {
   type GridSortModel,
   type GridValidRowModel,
 } from '@mui/x-data-grid';
+import { useCompactLayout } from '@star-board/runtime';
 import type { ComponentType } from 'react';
 import type { CellProps, ColumnDescriptor, ListProps } from '../contracts.js';
 import { useText } from '../i18n.js';
 import { EmptyState } from '../states/EmptyState.js';
+import { LoadingState } from '../states/LoadingState.js';
 import { CELLS } from './columns.js';
 
 export interface DataGridListProps<Row> extends ListProps<Row> {
@@ -22,6 +32,9 @@ export interface DataGridListProps<Row> extends ListProps<Row> {
    */
   disableVirtualization?: boolean;
 }
+
+/** How many columns a compact card shows (typescript/05 §6: wider tables need a responsive pattern). */
+export const COMPACT_CARD_COLUMNS = 3;
 
 /** A filter value as the string the contract carries; the server parses by column type. */
 export function filterValueText(value: unknown): string {
@@ -72,8 +85,16 @@ export function toColDef<Row extends GridValidRowModel>(
 /**
  * The default `screen.list` / `screen.grid` body: MUI X DataGrid (community) in server mode for
  * pagination, sorting and filtering; the caller owns the query and the data (typescript/02 §3).
+ * Under the `sm` breakpoint (or with `compact`) it is a card list instead: the first
+ * {@link COMPACT_CARD_COLUMNS} columns per row, the row action as a full-width button, and a pager.
  */
 export function DataGridList<Row extends GridValidRowModel>(props: DataGridListProps<Row>) {
+  const viewportCompact = useCompactLayout();
+  const compact = props.compact ?? viewportCompact;
+  return compact ? <CardList {...props} /> : <Grid {...props} />;
+}
+
+function Grid<Row extends GridValidRowModel>(props: DataGridListProps<Row>) {
   const t = useText();
   const { onPage, onSort, onFilter, onRowClick, getRowId } = props;
   const cells = props.cells;
@@ -137,5 +158,85 @@ export function DataGridList<Row extends GridValidRowModel>(props: DataGridListP
       sx={{ minHeight: 320 }}
       slotProps={{ loadingOverlay: { variant: 'skeleton', noRowsVariant: 'skeleton' } }}
     />
+  );
+}
+
+/** The compact body: one card per row, labelled values for the first columns, the row action. */
+function CardList<Row extends GridValidRowModel>(props: DataGridListProps<Row>) {
+  const t = useText();
+  const { onRowClick, getRowId, onPage } = props;
+  const cells = props.cells ?? {};
+  const shown = props.columns.slice(0, COMPACT_CARD_COLUMNS);
+  if (props.loading === true) return <LoadingState title={t('list.loading')} />;
+  if (props.rows.length === 0) return <EmptyState title={props.emptyLabel} />;
+  return (
+    <Box data-testid="data-grid-list" data-compact="true">
+      <Stack
+        component="ul"
+        spacing={1}
+        aria-label={t('list.cards')}
+        sx={{ listStyle: 'none', p: 0, m: 0 }}
+      >
+        {props.rows.map((row) => {
+          const id = getRowId(row);
+          return (
+            <Card key={id} component="li" variant="outlined" data-testid={`data-grid-card-${id}`}>
+              <CardContent component="dl" sx={{ m: 0 }}>
+                {shown.map((column) => {
+                  const Cell = cells[column.type] ?? CELLS[column.type];
+                  return (
+                    <Box key={column.field} sx={{ mb: 1 }}>
+                      <Typography component="dt" variant="caption" color="text.secondary">
+                        {column.headerName}
+                      </Typography>
+                      <Box component="dd" sx={{ m: 0 }}>
+                        <Cell
+                          value={(row as Record<string, unknown>)[column.field]}
+                          row={row}
+                          column={column}
+                        />
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </CardContent>
+              {onRowClick !== undefined && (
+                <CardActions>
+                  <Button
+                    type="button"
+                    fullWidth
+                    variant="outlined"
+                    // ≥ 44px touch target from the density token (dense mode opts into 32px).
+                    sx={{ minHeight: 'var(--sb-density-row)' }}
+                    onClick={() => {
+                      onRowClick(row);
+                    }}
+                    data-testid={`data-grid-open-${id}`}
+                  >
+                    {t('list.open')}
+                  </Button>
+                </CardActions>
+              )}
+            </Card>
+          );
+        })}
+      </Stack>
+      <TablePagination
+        component="div"
+        count={props.total}
+        page={props.page}
+        rowsPerPage={props.pageSize}
+        rowsPerPageOptions={[props.pageSize]}
+        onPageChange={(_event, page) => {
+          onPage(page);
+        }}
+        slotProps={{
+          actions: {
+            previousButton: { sx: { minHeight: 'var(--sb-density-row)' } },
+            nextButton: { sx: { minHeight: 'var(--sb-density-row)' } },
+          },
+        }}
+      />
+    </Box>
   );
 }

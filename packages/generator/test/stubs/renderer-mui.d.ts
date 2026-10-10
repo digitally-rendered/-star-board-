@@ -1,7 +1,8 @@
 /**
  * Stub of `@star-board/renderer-mui` for the compile test: `registerDefaults` and the prop
- * contracts of packages/renderer-mui/src/contracts.ts and agent/AgentPanel.tsx, which the
- * generated `domain/contract.ts` re-exports. Keep in step with the renderer.
+ * contracts of packages/renderer-mui/src/contracts.ts, agent/AgentPanel.tsx and
+ * dialogs/UnsavedChangesDialog.tsx, which the generated `domain/*` files re-export or resolve.
+ * Keep in step with the renderer.
  */
 import type { ComponentRegistry } from '@star-board/core';
 
@@ -84,4 +85,10 @@ export interface AgentPanelProps {
   disabled?: boolean;
   values?: unknown;
   schema?: string;
+}
+export interface UnsavedChangesDialogProps {
+  open: boolean;
+  onStay: () => void;
+  onLeave: () => void;
+  text?: string;
 }

@@ -7,7 +7,8 @@ TanStack Query, capability gating, error presentation and key-based i18n. It imp
 
 Rules applied: `typescript/01` §3–§5 (hooks call ports, adapters own auth and error typing),
 `typescript/02` §3 and §5 (shared data hooks, one client, primitives in dependency arrays),
-`typescript/05` §1, §2, §5, §7 (services provider, error table, interceptor-owned tokens, i18n keys),
+`typescript/05` §1, §2, §5, §6, §7, §9 (services provider, error table, interceptor-owned tokens,
+compact breakpoint, i18n keys, the unsaved-changes and session-timeout primitives),
 `shared/13` §3 (the capability filter that hides actions is the one the MCP tool list uses).
 
 ## Wiring
@@ -101,9 +102,30 @@ loading, error, data, reset }`. Variables are `{ id?, body?, doc? }`; for `updat
 
 ## i18n
 
-`createI18n(defaults, translations?)` → `{ t(key, vars?), has, extend }`; unknown keys fall back to
-the default text, then to the key. `I18nProvider` / `useI18n()`; `RUNTIME_DEFAULT_MESSAGES` lists the
-keys the runtime itself uses. The generator's `i18n.defaults.json` is the `defaults` argument.
+`createI18n(defaults, translations?, { locale? })` → `{ t, has, extend(translations, locale?), locale }`;
+unknown keys fall back to the default text, then to the key. `t(key, vars?)` interpolates `{name}`
+placeholders; `t.plural(key, count, vars?)` picks `key.<category>` by `Intl.PluralRules` (`key.zero`
+for an exact 0 when present, then `key.other`, then `key`) and interpolates `{count}`;
+`t.date(value, options?)` and `t.number(value, options?)` format through `Intl` in the instance's
+locale (default `navigator.language`, else `en`). `I18nProvider { i18n?, locale?, messages? }` serves
+an instance or derives one from the inherited instance (a nested provider switches language for a
+sub-tree); `useI18n()` reads the nearest. `RUNTIME_DEFAULT_MESSAGES` lists the keys the runtime
+itself uses. The generator's `i18n.defaults.json` is the `defaults` argument and its `useT()` reads
+the provider, so every generated string follows a locale switch.
+
+## Platform primitives (`src/platform/`, typescript/05 §6 and §9)
+
+- `useUnsavedChanges(isDirty)` → `{ blocked, stay, leave, release }`: while dirty, in-app navigation
+  is held by react-router's `useBlocker` (a data router is required; peer dependency `react-router`)
+  and the tab asks before unloading. Render the renderer's `UnsavedChangesDialog` from `blocked`;
+  `release(() => navigate(...))` runs the navigation that follows a save without asking. The
+  generated create and edit route containers wire it.
+- `useSessionTimeout({ idleMs, warningMs?, onTimeout, events?, enabled? })` → `{ state, reset }` with
+  `state` in `active | warning | expired`: an idle timer re-armed by user activity (throttled to once
+  per second), `warning` before the limit, `onTimeout` once at the limit.
+- `useMediaQuery(query)` and `useCompactLayout()` (`COMPACT_BREAKPOINT_PX` = 600, the `sm`
+  breakpoint): the one authority for the mobile switch; the generated containers hand it to the
+  screens as `compact`, the renderer's `DataGridList` reads it when `compact` is unset.
 
 ## Tests
 

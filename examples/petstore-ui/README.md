@@ -19,9 +19,20 @@ pnpm codegen:check                                 # from the root: no drift und
   never carries the loader. One input, as in production.
 - `src/app.tsx` is the composition root: `createServices` (runtime `createClient('/api')`, a demo
   principal with every capability), `createAppRegistry` (renderer defaults → generated screens →
-  `registerPetOverrides`), `createAppI18n` (runtime + renderer + generated defaults),
-  `createAppTheme` (the reference tokens → MUI theme and CSS variables), `appRoutes` (the generated
-  routes under `Layout`, `/` → the first nav entry).
+  `registerPetOverrides`), `createAppI18n(messages, locale)` (runtime + renderer + generated
+  defaults, a translation table and the formatters' locale), `createAppTheme` (the reference
+  tokens → MUI theme and CSS variables), `appRoutes` (the generated routes under `Layout`, `/` →
+  the first nav entry).
+- `?lang=fr` switches the locale (`src/i18n/locale.ts`, `main.tsx`): a small French table over the
+  generated, renderer and runtime keys shows that every string follows, because generated
+  components read `useT()` from the provider (typescript/05 §7).
+- `Layout.tsx` mounts the renderer's `SkipToContent` first, labels the navigation through `t`, and
+  owns the `main` landmark the skip link targets. The generated create and edit containers hold
+  navigation while a form is dirty and ask through the renderer's `UnsavedChangesDialog`
+  (typescript/05 §9).
+- Installable (typescript/05 §6): `index.html` links `public/generated/manifest.webmanifest`
+  (standalone, SVG icon placeholders under `public/generated/icons/`); no service worker and no
+  offline data. Under the `sm` breakpoint the generated list and grid render as cards.
 - `src/msw/browser.ts` starts a service worker with `handlersFromModel` seeded with fixtures when
   `VITE_MSW` is not `0` (the worker script is vendored under `public/generated/`, Vite's `publicDir`).
 - `src/features/pet`: `field.text` for `pet`/`name` (a character counter around the default
@@ -37,5 +48,9 @@ the capability sees no action or screen and the handler answers 404 by posture, 
 there); `src/overrides.test.tsx` renders the three overrides in place of the defaults and proves a
 generator run leaves `src/features` byte-identical and the committed tree drift-free;
 `src/workflow.test.tsx` runs list → create → detail → edit (If-Match sent, version bumped) →
-delete with confirmation → list → 404. `e2e/petstore.spec.ts` is the same workflow in a browser
-with `@axe-core/playwright`; it is not part of `pnpm test`.
+delete with confirmation → list → 404. `src/i18n.test.tsx` is the locale smoke test (`?lang=fr`
+reaches a generated screen and the frame; translated keys all exist); `src/unsaved.test.tsx` holds
+a dirty create form and lets a clean one go; `src/session.test.tsx` has msw answer 401 and asserts
+`onUnauthorized` fires once; `src/pwa.test.ts` checks the manifest, icons and viewport.
+`e2e/petstore.spec.ts` is the same workflow in a browser with `@axe-core/playwright`; it is not
+part of `pnpm test`.

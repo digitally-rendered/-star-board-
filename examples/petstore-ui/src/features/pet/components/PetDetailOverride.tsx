@@ -13,7 +13,7 @@ import {
 } from '../../../generated/domain/contract.js';
 import { PET_COLUMNS } from '../../../generated/domain/pet/columns.js';
 import type { PetDetailScreenProps } from '../../../generated/domain/pet/PetDetailScreen.js';
-import { t } from '../../../generated/i18n.js';
+import { useT } from '../../../generated/i18n.js';
 
 /** The fields the card body shows, in this order; the generated default shows every field. */
 const SHOWN = ['species', 'notes', 'created_at'] as const;
@@ -25,6 +25,7 @@ const SHOWN = ['species', 'notes', 'created_at'] as const;
  * object vocabulary (`pet-detail-*`) so the same tests drive both screens.
  */
 export function PetDetailOverride(props: PetDetailScreenProps): ReactElement {
+  const t = useT();
   const Loading = useResolved<StateProps>('state.loading', 'pet', 'pet_get');
   const ErrorState = useResolved<StateProps>('state.error', 'pet', 'pet_get');
   const Empty = useResolved<StateProps>('state.empty', 'pet', 'pet_get');

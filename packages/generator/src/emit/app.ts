@@ -65,6 +65,9 @@ function routeContainer(schema: SchemaPlan, screen: ScreenPlan): string {
   const nav = (expr: string) => `() => {\n  void navigate(${expr});\n}`;
   const navId = (template: string, param = 'id') =>
     `(${param}) => {\n  void navigate(\`${template}\`);\n}`;
+  // After a save the form is left on purpose: the navigation runs with the guard released.
+  const saved = (expr: string, param: string | null) =>
+    `(${param ?? ''}) => {\n  unsaved.release(() => void navigate(${expr}));\n}`;
   const collection = schema.actions.filter(
     (a) => a.mutation && !a.item && a.kind !== 'custom' && a.kind !== 'update',
   );
@@ -76,8 +79,8 @@ function routeContainer(schema: SchemaPlan, screen: ScreenPlan): string {
   // The record operations answer with the Document unless the document declares a response schema.
   const afterCreate =
     detail && createAction !== undefined && !createAction.hasResponse
-      ? navId(`/${name}/\${created.${schema.idField}}`, 'created')
-      : nav(quote(listPath));
+      ? saved(`\`/${name}/\${created.${schema.idField}}\``, 'created')
+      : saved(quote(listPath), null);
   const onOpen = detail ? navId(`/${name}/\${id}`) : nav(quote(listPath));
   let body: string[];
   switch (screen.kind) {
@@ -128,7 +131,7 @@ function routeContainer(schema: SchemaPlan, screen: ScreenPlan): string {
       body = [
         `const id = as${pascal}Id(useParams().id ?? '');`,
         `const props = use${pascal}EditScreen(id, {`,
-        `  onSaved: ${indent(nav(detail ? `\`/${name}/\${id}\`` : quote(listPath))).trimStart()},`,
+        `  onSaved: ${indent(saved(detail ? `\`/${name}/\${id}\`` : quote(listPath), null)).trimStart()},`,
         `  onCancel: ${indent(nav(detail ? `\`/${name}/\${id}\`` : quote(listPath))).trimStart()},`,
         '});',
       ];
@@ -145,14 +148,34 @@ function routeContainer(schema: SchemaPlan, screen: ScreenPlan): string {
       break;
     }
   }
+  const form = screen.kind === 'create' || screen.kind === 'edit';
   return lines([
     `function ${container}(): ReactElement {`,
     '  const navigate = useNavigate();',
     // The screen is resolved through the registry, so an override registered for the same
     // (schema, operation) replaces the generated default (typescript/12 §3).
     `  const Screen = useResolved<${screen.component}Props>(${quote(screen.key)}, ${quote(name)}, ${quote(screen.operationId)});`,
+    ...(form
+      ? [
+          '  // The unsaved-changes dialog (typescript/05 §9): the renderer registers it at screen.custom / unsaved-changes.',
+          `  const UnsavedChanges = useOptionalResolved<UnsavedChangesDialogProps>('screen.custom', ${quote(name)}, 'unsaved-changes');`,
+        ]
+      : []),
     ...body.map((l) => indent(l)),
-    '  return <Screen {...props} />;',
+    ...(form
+      ? [
+          '  // A dirty form holds navigation until the user decides; a save releases it (`onSaved` / `onCreated`).',
+          '  const unsaved = useUnsavedChanges(props.dirty);',
+          '  return (',
+          '    <>',
+          '      <Screen {...props} />',
+          '      {UnsavedChanges === null ? null : (',
+          '        <UnsavedChanges open={unsaved.blocked} onStay={unsaved.stay} onLeave={unsaved.leave} />',
+          '      )}',
+          '    </>',
+          '  );',
+        ]
+      : ['  return <Screen {...props} />;']),
     '}',
   ]).trimEnd();
 }
@@ -176,13 +199,19 @@ export function emitRoutes(plan: GenerationPlan, source: Source): GeneratedFile 
     const action = schema.actions.find((a) => a.id === screen.operationId);
     return action?.item ? `/${schema.name}/:id/${action.operation}` : screen.route;
   };
+  const needsUnsaved = plan.schemas.some((s) =>
+    s.screens.some((sc) => sc.kind === 'create' || sc.kind === 'edit'),
+  );
   return {
     path: ROUTES_PATH,
     contents: lines([
       header(source),
       "import type { ReactElement } from 'react';",
       `import { ${needsParams ? 'useNavigate, useParams' : 'useNavigate'}, type RouteObject } from 'react-router';`,
-      "import { useResolved } from './domain/contract.js';",
+      needsUnsaved ? "import { useUnsavedChanges } from '@star-board/runtime';" : null,
+      needsUnsaved
+        ? "import { useOptionalResolved, useResolved, type UnsavedChangesDialogProps } from './domain/contract.js';"
+        : "import { useResolved } from './domain/contract.js';",
       ...plan.schemas.flatMap((schema) => {
         const hooks = schema.screens.map((s) => hookNameFor(schema, s)).sort();
         return [
@@ -232,12 +261,13 @@ export function emitNav(plan: GenerationPlan, source: Source): GeneratedFile {
     path: NAV_PATH,
     contents: lines([
       header(source),
-      "import { t } from './i18n.js';",
+      "import { t, type I18nKey } from './i18n.js';",
       '',
       'export interface NavEntry {',
       '  schema: string;',
+      '  /** The default text; a frame that follows the locale renders `t(i18nKey)` instead. */',
       '  label: string;',
-      '  i18nKey: string;',
+      '  i18nKey: I18nKey;',
       '  path: string;',
       '}',
       '',
@@ -273,9 +303,21 @@ export function emitI18n(
         '} as const;',
         '',
         'export type I18nKey = keyof typeof defaults;',
+        'export type Vars = Record<string, string | number>;',
+        'export type T = (key: I18nKey, vars?: Vars) => string;',
         '',
-        'export function t(key: I18nKey): string {',
-        '  return defaults[key];',
+        'export function t(key: I18nKey, vars?: Vars): string {',
+        '  const text: string = defaults[key];',
+        '  if (vars === undefined) return text;',
+        '  return text.replace(/\\{(\\w+)\\}/g, (match, name: string) => {',
+        '    const value = vars[name];',
+        '    return value === undefined ? match : String(value);',
+        '  });',
+        '}',
+        '',
+        '/** No provider is wired: the defaults are the only table. */',
+        'export function useT(): T {',
+        '  return t;',
         '}',
       ]),
     };
@@ -284,16 +326,34 @@ export function emitI18n(
     path: I18N_PATH,
     contents: lines([
       header(source),
-      "import { createI18n } from '@star-board/runtime';",
+      "import { useMemo } from 'react';",
+      "import { createI18n, useI18n, type Vars } from '@star-board/runtime';",
       "import defaults from './i18n.defaults.json' with { type: 'json' };",
       '',
       '/** Every message key the generated screens use; translations override by key. */',
       'export type I18nKey = keyof typeof defaults;',
+      'export type { Vars };',
+      'export type T = (key: I18nKey, vars?: Vars) => string;',
       '',
+      '/** The defaults as an instance: the fallback of `useT` and the table for module-level labels. */',
       'export const i18n = createI18n(defaults);',
       '',
-      'export function t(key: I18nKey): string {',
-      '  return i18n.t(key);',
+      '/** The default text of `key` (no provider). Components call `useT` so a locale switch reaches them. */',
+      'export function t(key: I18nKey, vars?: Vars): string {',
+      '  return i18n.t(key, vars);',
+      '}',
+      '',
+      '/**',
+      ' * `t` from the nearest I18nProvider (its locale and translations, typescript/05 §7), typed by the',
+      ' * generated keys; a key the provider lacks falls back to the generated default.',
+      ' */',
+      'export function useT(): T {',
+      '  const provided = useI18n();',
+      '  return useMemo(',
+      '    () => (key: I18nKey, vars?: Vars) =>',
+      '      provided.has(key) ? provided.t(key, vars) : i18n.t(key, vars),',
+      '    [provided],',
+      '  );',
       '}',
     ]),
   };
@@ -350,7 +410,9 @@ export function emitIndex(
       "export { createGeneratedRegistry } from './setup.js';",
       "export { routes } from './routes.js';",
       "export { nav, type NavEntry } from './nav.js';",
-      has(I18N_PATH) ? "export { t, type I18nKey } from './i18n.js';" : null,
+      has(I18N_PATH)
+        ? "export { t, useT, type I18nKey, type T, type Vars } from './i18n.js';"
+        : null,
     ]),
   };
 }

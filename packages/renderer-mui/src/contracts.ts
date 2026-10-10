@@ -109,6 +109,11 @@ export interface ListProps<Row = Record<string, unknown>> {
   loading?: boolean;
   getRowId: (row: Row) => string;
   emptyLabel: string;
+  /**
+   * Mobile layout (typescript/05 §6): a card list with the first three columns and the row action.
+   * Unset, the implementation follows the viewport (under the `sm` breakpoint).
+   */
+  compact?: boolean;
 }
 
 /** `action.<kind>`: one operation as a button; `delete` and any `confirm` text open a dialog. */
@@ -139,10 +144,15 @@ export interface Breadcrumb {
   to?: string;
 }
 
-/** `screen.<kind>` shell: one `h1`, a `main` landmark and the skip-to-content target. */
+/**
+ * `screen.<kind>` shell: one `h1`, a `main` landmark and the skip-to-content target. Embedded in a
+ * host page (typescript/05 §8) the shell must not duplicate the host's landmarks: `embedded`
+ * renders a labelled `section` with an `h2` instead.
+ */
 export interface ScreenShellProps {
   title: string;
   breadcrumbs?: Breadcrumb[];
   actions?: ReactNode;
   children: ReactNode;
+  embedded?: boolean;
 }

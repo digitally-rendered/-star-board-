@@ -6,10 +6,11 @@ import {
   renderedTestIds,
 } from '@star-board/testing/harness';
 import { fixtures } from '@star-board/testing';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ActionProps } from './generated/domain/contract.js';
 import { AVAILABLE_PETS_COLUMNS, PET_LIST_COLUMNS } from './generated/domain/pet/columns.js';
+import i18nDefaults from './generated/i18n.defaults.json' with { type: 'json' };
 import type { PetCreateScreenProps } from './generated/domain/pet/PetCreateScreen.js';
 import type { PetDetailScreenProps } from './generated/domain/pet/PetDetailScreen.js';
 import type { PetEditScreenProps } from './generated/domain/pet/PetEditScreen.js';
@@ -38,6 +39,7 @@ const table = {
   page: { page: 1, pageSize: 25, total: pets.length },
   sort: undefined,
   filters: {},
+  compact: false,
   onPage: vi.fn(),
   onSort: vi.fn(),
   onFilter: vi.fn(),
@@ -117,6 +119,7 @@ describe('generated screens mount with fixture data', () => {
     const props: PetCreateScreenProps = {
       values: { name: 'Rex' },
       errors: { species: 'Required' },
+      dirty: true,
       pending: false,
       submitError: undefined,
       onChange: vi.fn(),
@@ -144,6 +147,7 @@ describe('generated screens mount with fixture data', () => {
       retry: undefined,
       values: { name: first.name, status: first.status },
       errors: {},
+      dirty: false,
       pending: false,
       submitError: 'Stale',
       onChange: vi.fn(),
@@ -158,6 +162,101 @@ describe('generated screens mount with fixture data', () => {
     });
     expectTestIds(container, renderedTestIds(MODEL, 'pet', 'edit'));
     expect(screen.getByTestId('state-error').textContent).toContain('Stale');
+    await expectNoViolations(container);
+  });
+
+  it('screen.list and screen.grid compact: a card per row with the first columns and the row action', async () => {
+    const onOpen = vi.fn();
+    const props: PetListScreenProps = {
+      ...table,
+      compact: true,
+      onOpen,
+      rows: pets,
+      columns: PET_LIST_COLUMNS,
+      actions: [action('pet_create', 'Create')],
+    };
+    const list = renderGeneratedScreen({
+      ...harnessOptions(),
+      screen: { key: 'screen.list', schema: 'pet', target: 'pet_list' },
+      props,
+    });
+    // The same page-object ids as the table, under a cards layout: no <table>, one card per row.
+    const container = screen.getByTestId('pet-list-table');
+    expect(container.tagName).toBe('UL');
+    expect(container.getAttribute('data-layout')).toBe('cards');
+    expect(screen.queryByTestId('pet-list-sort-name')).toBeNull();
+    expect(screen.getAllByTestId(/^pet-list-row-/)).toHaveLength(pets.length);
+    // The first three shown columns of the list (name, species, status) and nothing else.
+    const card = screen.getByTestId(`pet-list-row-${String(first.entity_id)}`);
+    expect(card.querySelectorAll('dt')).toHaveLength(3);
+    expect(within(card).getByTestId('cell-name').textContent).toBe(first.name);
+    expect(within(card).queryByTestId('cell-notes')).toBeNull();
+    within(card)
+      .getByTestId(`pet-list-open-${String(first.entity_id)}`)
+      .click();
+    expect(onOpen).toHaveBeenCalledWith(first.entity_id);
+    await expectNoViolations(list.container);
+    list.unmount();
+
+    const gridProps: PetGridScreenProps = {
+      ...table,
+      compact: true,
+      title: 'Available pets',
+      filterable: ['species'],
+      rows: pets.map(({ entity_id, name, species, status }) => ({
+        entity_id,
+        name,
+        species,
+        status,
+      })),
+      columns: AVAILABLE_PETS_COLUMNS,
+      actions: [],
+    };
+    const grid = renderGeneratedScreen({
+      ...harnessOptions(),
+      screen: { key: 'screen.grid', schema: 'pet', target: 'available_pets_query' },
+      props: gridProps,
+    });
+    expect(screen.getByTestId('pet-grid-table').getAttribute('data-layout')).toBe('cards');
+    expect(screen.getAllByTestId(/^pet-grid-row-/)).toHaveLength(pets.length);
+    expectTestIds(
+      grid.container,
+      renderedTestIds(MODEL, 'pet', 'grid', 'available_pets').filter(
+        (id) => !id.includes('-sort-'),
+      ),
+    );
+    await expectNoViolations(grid.container);
+  });
+
+  it('screen.create renders the regulated-wording disclaimer only when a translation sets it', async () => {
+    const props: PetCreateScreenProps = {
+      values: {},
+      errors: {},
+      dirty: false,
+      pending: false,
+      submitError: undefined,
+      onChange: vi.fn(),
+      onSubmit: vi.fn(),
+      onCancel: vi.fn(),
+      onAgentApplied: undefined,
+    };
+    const silent = renderGeneratedScreen({
+      ...harnessOptions(),
+      screen: { key: 'screen.create', schema: 'pet', target: 'pet_create' },
+      props,
+    });
+    expect(screen.queryByTestId('help-pet-create-disclaimer')).toBeNull();
+    silent.unmount();
+    const wording = 'Information about pets, not veterinary advice.';
+    const { container } = renderGeneratedScreen({
+      ...harnessOptions(),
+      messages: { ...i18nDefaults, 'pet.screen.create.disclaimer': wording },
+      screen: { key: 'screen.create', schema: 'pet', target: 'pet_create' },
+      props,
+    });
+    const note = screen.getByTestId('help-pet-create-disclaimer');
+    expect(note.getAttribute('role')).toBe('note');
+    expect(note.textContent).toBe(wording);
     await expectNoViolations(container);
   });
 

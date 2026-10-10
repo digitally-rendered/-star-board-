@@ -173,6 +173,7 @@ export const COMMON_I18N: Readonly<Record<string, string>> = {
   'common.filter': 'Filter',
   'common.forbidden': 'You do not have access to this',
   'common.loading': 'Loading',
+  'common.navigation': 'Navigation',
   'common.next': 'Next',
   'common.notFound': 'Not found',
   'common.open': 'Open',
@@ -260,6 +261,11 @@ function planSchema(
   }
   for (const field of [...fields, ...createFields, ...updateFields]) {
     if (field.group !== null) i18n[`${name}.group.${field.group}.label`] ??= humanize(field.group);
+  }
+  for (const field of [...createFields, ...updateFields]) {
+    if (field.key !== 'field.subform') continue;
+    for (const member of Object.keys(propertiesOf(field.schema)))
+      i18n[`${name}.field.${field.name}.${member}.label`] ??= humanize(member);
   }
 
   const operations = sortedEntries(model.operations)
@@ -521,6 +527,11 @@ function planScreens(
         : source.kind === 'custom'
           ? humanize(source.op.operation)
           : `${humanize(name)} ${source.kind}`;
+    // The regulated-wording slot (typescript/05 §4): empty by default, filled by a translation
+    // table from a reviewed source, rendered through `help.inline` when non-empty.
+    if (source.kind === 'create' || source.kind === 'edit') {
+      i18n[`${name}.screen.${source.kind}.disclaimer`] = '';
+    }
     screens.push({
       kind: source.kind,
       key: `screen.${source.kind}`,

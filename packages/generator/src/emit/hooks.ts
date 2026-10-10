@@ -61,6 +61,11 @@ export function emitApplicationSupport(source: Source): GeneratedFile {
       '  return errors;',
       '}',
       '',
+      '/** A form is dirty once any value was set (typescript/05 §9: unsaved changes hold navigation). */',
+      'export function isDirty(values: Readonly<Record<string, unknown>>): boolean {',
+      '  return Object.values(values).some((value) => value !== undefined);',
+      '}',
+      '',
       '/** The per-field messages of a 422 response (RFC 7807 `errors` or the envelope `details`). */',
       'export function serverFieldErrors(error: unknown): Record<string, string> {',
       '  return isHttpError(error) && error.fields !== undefined ? { ...error.fields } : {};',
@@ -247,10 +252,12 @@ export function emitScreenHooks(
   const blocks = schema.screens.map((screen) => screenHook(plan, schema, screen));
   const needs = (kind: ScreenPlan['kind']) => schema.screens.some((s) => s.kind === kind);
   const runtimeImports = [
+    needs('list') || needs('grid') ? 'useCompactLayout' : null,
     needs('detail') || needs('edit') ? 'useEntity' : null,
     needs('list') ? 'useEntityList' : null,
     needs('grid') ? 'useView' : null,
   ].filter((v): v is string => v !== null);
+  const usesT = blocks.some((b) => /\bt\(/.test(b));
   const runnable = (a: ActionPlan) => a.kind === 'custom' && a.mutation && !a.hasRequest;
   const needsState =
     needs('create') ||
@@ -297,6 +304,7 @@ export function emitScreenHooks(
   const supportImports = [
     needs('edit') ? 'etagFor' : null,
     needs('create') || needs('edit') ? 'fieldErrors' : null,
+    needs('create') || needs('edit') ? 'isDirty' : null,
     'messageOf',
     needs('create') || needs('edit') ? 'serverFieldErrors' : null,
     'statusOf',
@@ -311,7 +319,7 @@ export function emitScreenHooks(
       runtimeImports.length > 0
         ? `import { ${runtimeImports.join(', ')} } from '@star-board/runtime';`
         : null,
-      "import { t } from '../../i18n.js';",
+      usesT ? "import { useT } from '../../i18n.js';" : null,
       needs('create') || needs('edit')
         ? "import type { operations } from '../../adapters/paths.js';"
         : null,
@@ -345,7 +353,17 @@ function actionLiteral(action: ActionPlan, disabled: string, onClick: string): s
 
 const PAGE_TOTAL = 'result.data?.total ?? result.data?.items.length ?? 0';
 
+/** Adds `const t = useT();` to a hook body that translates (the provider's locale reaches labels). */
+function withT(block: string): string {
+  if (!/\bt\(/.test(block)) return block;
+  return block.replace(/^(export function use[^\n]*\{\n)/m, '$1  const t = useT();\n');
+}
+
 function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan): string {
+  return withT(screenHookBody(plan, schema, screen));
+}
+
+function screenHookBody(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan): string {
   const { name, pascal } = schema;
   const props = `${screen.component}Props`;
   const can = `can.${screen.operationId}`;
@@ -362,6 +380,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '',
         `export function use${pascal}ListScreen(callbacks: ${pascal}ListCallbacks): ${props} {`,
         `  const can = use${pascal}Capabilities();`,
+        '  const compact = useCompactLayout();',
         '  const list = useListState(25);',
         `  const result = useEntityList<${pascal}>(${quote(name)}, list.query);`,
         '  const actions: ActionProps[] = [];',
@@ -374,6 +393,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '    error: messageOf(result.error),',
         '    rows: result.data?.items ?? [],',
         `    columns: ${listColumnsConstName(schema)},`,
+        '    compact,',
         `    page: { page: list.page, pageSize: list.pageSize, total: ${PAGE_TOTAL} },`,
         '    sort: list.sort,',
         '    filters: list.filters,',
@@ -401,6 +421,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `/** Container of the \`${view.view}\` view${view.roles.length > 0 ? ` (roles: ${view.roles.join(', ')})` : ''}. */`,
         `export function use${pascalCase(view.view)}GridScreen(callbacks: ${pascal}GridCallbacks): ${props} {`,
         `  const can = use${pascal}Capabilities();`,
+        '  const compact = useCompactLayout();',
         `  const list = useListState(${view.limits.default}${initialSort ? `, { field: ${quote(initialSort.field)}, dir: ${quote(initialSort.dir)} }` : ''});`,
         `  const result = useView<${viewRowType(pascal, view.view)}>(${quote(view.view)}, list.viewQuery);`,
         '  return {',
@@ -409,6 +430,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         `    title: t(${quote(view.titleKey)}),`,
         '    rows: result.data?.items ?? [],',
         `    columns: ${viewConstName(view.view)},`,
+        '    compact,',
         `    filterable: [${view.filters.map((f) => quote(f.field)).join(', ')}],`,
         `    page: { page: list.page, pageSize: list.pageSize, total: ${PAGE_TOTAL} },`,
         '    sort: list.sort,',
@@ -495,6 +517,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '  return {',
         '    values,',
         '    errors,',
+        '    dirty: isDirty(values),',
         '    pending: create.loading,',
         '    submitError: messageOf(create.error),',
         '    onChange: (field, value) => {',
@@ -550,6 +573,7 @@ function screenHook(plan: GenerationPlan, schema: SchemaPlan, screen: ScreenPlan
         '    ifMatch: etagFor(entity),',
         '    values,',
         '    errors,',
+        '    dirty: isDirty(edits),',
         '    pending: update.loading,',
         '    submitError: messageOf(update.error),',
         '    onChange: (field, value) => {',

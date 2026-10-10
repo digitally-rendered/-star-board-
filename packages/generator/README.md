@@ -41,31 +41,31 @@ check(model, opts); // Drift[]: [{ path, kind: 'missing' | 'changed' | 'extra' }
 ```
 <out>/
 ├── domain/                               props-only components; never fetch (typescript/01 §2)
-│   ├── contract.ts                       re-exports the renderer's prop contracts (FieldProps, CellProps, ColumnDescriptor, ActionProps, StateProps, HelpProps, Option, FieldDescriptor) and adds ScreenStatus, ColumnSpec, TableProps, AgentSlotProps, `useResolved(key, schema, target)` and the exactOptionalPropertyTypes helpers (fieldText, stateProps, retryAction)
+│   ├── contract.ts                       re-exports the renderer's prop contracts (FieldProps, CellProps, ColumnDescriptor, ActionProps, StateProps, HelpProps, Option, FieldDescriptor, UnsavedChangesDialogProps) and adds ScreenStatus, ColumnSpec, TableProps (with `compact`), AgentSlotProps, `useResolved(key, schema, target)`, `useOptionalResolved` (null instead of a RegistryError), `cardFields` and the exactOptionalPropertyTypes helpers (fieldText, stateProps, retryAction)
 │   ├── AgentPanelSlot.tsx                the agent affordance slot (screen.custom / agent-panel): passes operationId, args, ifMatch, onApplied, disabled to the renderer's AgentPanel
 │   └── <schema>/
 │       ├── types.ts                      <Schema>, <Schema>Create, <Schema>Update, branded <Schema>Id, one Pick row type per view
 │       ├── schemas.ts                    zod 4: <Schema>CreateSchema, <Schema>UpdateSchema, <Schema>DocumentSchema (+ inferred *Values)
 │       ├── columns.ts                    <SCHEMA>_COLUMNS (one ColumnDescriptor per Document field, `list.column.<type>` from the tokens column types: string, number, boolean, date-time, enum, reference), <SCHEMA>_LIST_COLUMNS, one <VIEW>_COLUMNS per view, <SCHEMA>_<FIELD>_OPTIONS for every enum
-│       ├── <Schema>ListScreen.tsx        screen.list   — columns from the Document (system fields hidden), sort headers, pager
-│       ├── <Schema>GridScreen.tsx        screen.grid   — one per schema with a view; columns and filters from x-view
+│       ├── <Schema>ListScreen.tsx        screen.list   — columns from the Document (system fields hidden), sort headers, pager; `compact` renders a card list (first three shown columns, the open action) under the same page-object ids with data-layout="cards"
+│       ├── <Schema>GridScreen.tsx        screen.grid   — one per schema with a view; columns and filters from x-view; same compact body
 │       ├── <Schema>DetailScreen.tsx      screen.detail — field values through list.column.<type>, help.inline, item actions
-│       ├── <Schema>CreateScreen.tsx      screen.create — field.* widgets grouped by x-ui-group, action.create, AgentPanelSlot
-│       ├── <Schema>EditScreen.tsx        screen.edit
+│       ├── <Schema>CreateScreen.tsx      screen.create — field.* widgets grouped by x-ui-group, action.create, AgentPanelSlot, the `<schema>.screen.create.disclaimer` slot through help.inline (typescript/05 §4; empty by default), `dirty`
+│       ├── <Schema>EditScreen.tsx        screen.edit   — likewise, with `<schema>.screen.edit.disclaimer`
 │       └── <Schema><Op>Screen.generated.tsx   screen.custom stub per Tier 3 operation
 ├── application/                          application hooks (typescript/01 §3); no fetch, only the runtime's shared data hooks
-│   ├── support.ts                        statusOf (404 → ready/empty, 403 → forbidden), messageOf, fieldErrors, serverFieldErrors, versionedOf/etagFor (If-Match), useListState (query for useEntityList, viewQuery for useView)
+│   ├── support.ts                        statusOf (404 → ready/empty, 403 → forbidden), messageOf, fieldErrors, serverFieldErrors, isDirty, versionedOf/etagFor (If-Match), useListState (query for useEntityList, viewQuery for useView)
 │   └── <schema>/
 │       ├── use<Schema>Actions.ts         <SCHEMA>_OPERATIONS, use<Schema>Capabilities(), one use<Schema><Op>(): MutationState<Body, Response> over useMutation per POST/PUT/PATCH/DELETE
-│       └── use<Schema>Screens.ts         container hooks: use<Schema>ListScreen, use<View>GridScreen, use<Schema>DetailScreen, use<Schema>CreateScreen, use<Schema>EditScreen, use<Schema><Op>Screen
+│       └── use<Schema>Screens.ts         container hooks: use<Schema>ListScreen, use<View>GridScreen (both read `compact` from the runtime's useCompactLayout), use<Schema>DetailScreen, use<Schema>CreateScreen, use<Schema>EditScreen (both report `dirty`), use<Schema><Op>Screen
 ├── adapters/
 │   ├── paths.ts                          `operations` and `paths` interfaces (method, path, params, body, response) + OPERATION_TABLE
 │   └── client.ts                         createGeneratedClient(baseUrl, auth) = createClient<paths>(…)
 ├── registry.ts                           registerGenerated(registry): the generated screens only (key screen.*, schema, target = operationId, source 'generated')
 ├── setup.ts                              createGeneratedRegistry(): renderer registerDefaults(), then registerGenerated()
-├── routes.tsx                            react-router RouteObject[]; containers pair a hook with the screen resolved through the registry (`useResolved('screen.<kind>', schema, operationId)`), so a whole-screen override replaces the default; lazy-free
-├── nav.ts                                one entry per schema, ordered by schema name
-├── i18n.defaults.json, i18n.ts           <schema>.field.<f>.label|help, <schema>.screen.<kind>.title, <schema>.view.<v>.title, <schema>.action.<op>.label, <schema>.group.<g>.label, <schema>.nav.label, common.*
+├── routes.tsx                            react-router RouteObject[]; containers pair a hook with the screen resolved through the registry (`useResolved('screen.<kind>', schema, operationId)`), so a whole-screen override replaces the default; lazy-free. The create and edit containers hold navigation while the form is dirty (runtime `useUnsavedChanges`), ask through the dialog resolved at `screen.custom` / `unsaved-changes`, and release the guard for the navigation after a save
+├── nav.ts                                one entry per schema, ordered by schema name; `i18nKey` is typed so a frame renders `t(entry.i18nKey)` in the current locale
+├── i18n.defaults.json, i18n.ts           <schema>.field.<f>.label|help|option.<v>|<member>.label, <schema>.screen.<kind>.title|disclaimer, <schema>.view.<v>.title, <schema>.action.<op>.label, <schema>.group.<g>.label, <schema>.nav.label, common.*; `t(key, vars?)` is the default text, `useT()` the provider-aware `t` every generated component and hook calls (typescript/05 §7), typed by `I18nKey`
 ├── index.ts                              barrel
 └── manifest.json                         { buildVersion, source: { title, version }, files: [{ path, sha256 }] }
 ```
@@ -104,12 +104,27 @@ per filter); `useMutation(operationId)` returning `{ mutate, mutateAsync, loadin
 variables are `{ id?, body?, doc? }` — update and delete pass `doc: versionedOf(entity)` and the
 runtime builds `If-Match` from it; `useCapability(cap)`; `useComponent(key, schema, target)`
 returning a `Registration` (the generated `useResolved` reads `.component`); `etagOf`,
-`isHttpError`; `createClient<Paths>(baseUrl, auth)`; `createI18n(defaults)` with `.t(key)`. From
-the renderer named in `renderer`: the prop contracts above, `AgentPanelProps` and
-`registerDefaults`. `test/stubs/*.d.ts` mirror these signatures (keep them in step with
+`isHttpError`; `createClient<Paths>(baseUrl, auth)`; `createI18n(defaults)` with `.t(key, vars?)`
+and `.has(key)`, `useI18n()`; `useUnsavedChanges(isDirty)` → `{ blocked, stay, leave, release }`;
+`useCompactLayout()`. From the renderer named in `renderer`: the prop contracts above,
+`AgentPanelProps`, `UnsavedChangesDialogProps` and `registerDefaults`. `test/stubs/*.d.ts` mirror these signatures (keep them in step with
 `packages/runtime/src` and `packages/renderer-mui/src/contracts.ts`); the compile test proves the
 output type-checks against them under `tsconfig.base.json`'s strictness, and
 `examples/petstore-ui` type-checks the same output against the real packages.
+
+### Platform rules applied (hexagonal-rules typescript/05)
+
+- §4 regulated wording: each create and edit screen reads `<schema>.screen.<kind>.disclaimer`
+  (an empty default) and renders it through `help.inline` at (`schema`, `operationId`) only when a
+  translation table fills it; the wording comes from the reviewed source, never from code.
+- §6 mobile: the table screens take `compact` (from `useCompactLayout` in the container) and render
+  a card list of the first `COMPACT_CARD_COLUMNS` shown columns plus the open action, keeping the
+  table's test ids under `data-layout="cards"`, so the same page objects drive both layouts.
+- §7 i18n: every user-facing string in the emitted code is a `t(key)` call; `test/i18n-lint.test.ts`
+  parses the output with the TypeScript compiler and fails on a JSX text node, a string literal in
+  a JSX expression, or a literal given to a user-facing attribute or property.
+- §9 shared primitives: the forms report `dirty`, the route containers wire the runtime's
+  `useUnsavedChanges` and the renderer's dialog through the registry (no new contract key).
 
 ## Override model (typescript/12 §3)
 
@@ -132,7 +147,8 @@ runtime and are never part of the check (contradiction #2).
 `pnpm -F @star-board/generator test`: golden snapshots (file list, plan, types, zod, hooks,
 registry, routes, nav, i18n, manifest) in `test/__snapshots__/`; determinism; override safety;
 drift; zod ⇄ schema agreement with fast-check (valid payloads accepted; `maxLength`, `enum`,
-`required` and `additionalProperties: false` violations rejected); and a compile test that
-type-checks the emitted tree with the TypeScript compiler API against the stubs.
+`required` and `additionalProperties: false` violations rejected); the generated-text lint
+(`test/i18n-lint.test.ts`); and a compile test that type-checks the emitted tree with the
+TypeScript compiler API against the stubs.
 
 See the plan Part 2 and `.kiro/specs/06-generator/` for the owning spec.

@@ -713,6 +713,7 @@
     "common.filter": "Filter",
     "common.forbidden": "You do not have access to this",
     "common.loading": "Loading",
+    "common.navigation": "Navigation",
     "common.next": "Next",
     "common.notFound": "Not found",
     "common.open": "Open",
@@ -745,8 +746,10 @@
     "pet.field.status.option.sold": "Sold",
     "pet.group.details.label": "Details",
     "pet.nav.label": "Pet",
+    "pet.screen.create.disclaimer": "",
     "pet.screen.create.title": "Pet create",
     "pet.screen.detail.title": "Pet detail",
+    "pet.screen.edit.disclaimer": "",
     "pet.screen.edit.title": "Pet edit",
     "pet.screen.list.title": "Pet list",
     "pet.view.available_pets.title": "Available pets"

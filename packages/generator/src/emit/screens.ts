@@ -16,7 +16,7 @@ import { header, indent, lines, type GeneratedFile, type Source } from './suppor
  * the resolved contract components (`useResolved(key, schema, target)` over the runtime's
  * registry hook) and never fetch. The field, cell, action, state and help props are the
  * renderer's own contracts, re-exported by `domain/contract.ts`; every interactive element
- * carries a `data-testid`; labels and help come from the i18n defaults (`t(...)`).
+ * carries a `data-testid`; every user-facing string is a key through `useT()` (typescript/05 §7).
  */
 
 export const CONTRACT_PATH = 'domain/contract.ts';
@@ -32,6 +32,7 @@ const RENDERER_TYPES = [
   'HelpProps',
   'Option',
   'StateProps',
+  'UnsavedChangesDialogProps',
 ];
 
 export function emitContract(source: Source, renderer: string): GeneratedFile {
@@ -64,6 +65,22 @@ export function emitContract(source: Source, renderer: string): GeneratedFile {
       '  return useComponent<ComponentType<P>>(key, schema, target).component;',
       '}',
       '',
+      '/**',
+      ' * `useResolved` for a slot that may have no registration (a renderer that lacks the primitive):',
+      ' * null instead of a RegistryError, so the caller renders nothing.',
+      ' */',
+      'export function useOptionalResolved<P>(',
+      '  key: ComponentKey,',
+      '  schema: string,',
+      '  target: string,',
+      '): ComponentType<P> | null {',
+      '  try {',
+      '    return useComponent<ComponentType<P>>(key, schema, target).component;',
+      '  } catch {',
+      '    return null;',
+      '  }',
+      '}',
+      '',
       '/** One column of a generated table: the renderer descriptor plus its registry key and visibility. */',
       'export interface ColumnSpec extends ColumnDescriptor {',
       '  readonly key: ListColumnKey;',
@@ -86,6 +103,8 @@ export function emitContract(source: Source, renderer: string): GeneratedFile {
       'export interface TableProps<Row> {',
       '  rows: readonly Row[];',
       '  columns: readonly ColumnSpec[];',
+      '  /** Under the `sm` breakpoint (typescript/05 §6): a card list of the first columns instead of the table. */',
+      '  compact: boolean;',
       '  page: PageState;',
       '  sort: SortState | undefined;',
       '  filters: Readonly<Record<string, string>>;',
@@ -144,6 +163,17 @@ export function emitContract(source: Source, renderer: string): GeneratedFile {
       '/** Fields of `columns` that are not hidden. */',
       'export function shownFields(columns: readonly ColumnSpec[]): ReadonlySet<string> {',
       '  return new Set(columns.filter((column) => !column.hidden).map((column) => column.field));',
+      '}',
+      '',
+      '/** How many columns a compact card shows (typescript/05 §6: wider tables need a responsive pattern). */',
+      'export const COMPACT_CARD_COLUMNS = 3;',
+      '',
+      '/** The shown fields a compact card carries: the first `limit` in column order. */',
+      'export function cardFields(',
+      '  columns: readonly ColumnSpec[],',
+      '  limit: number = COMPACT_CARD_COLUMNS,',
+      '): ReadonlySet<string> {',
+      '  return new Set([...shownFields(columns)].slice(0, limit));',
       '}',
       '',
       '/** A reference field has no lookup by default; register a `field.reference` override that searches. */',
@@ -427,7 +457,7 @@ function widgetExtras(schema: SchemaPlan, field: FormFieldPlan): string[] {
     case 'field.select':
       return [`options={[...${optionsConstName(schema, field.name)}]}`];
     case 'field.subform':
-      return [`fields={${subformFields(field)}}`];
+      return [`fields={${subformFields(schema, field)}}`];
     case 'field.reference':
       return ['search={noReferenceSearch}'];
     default:
@@ -435,23 +465,16 @@ function widgetExtras(schema: SchemaPlan, field: FormFieldPlan): string[] {
   }
 }
 
-function subformFields(field: FormFieldPlan): string {
+function subformFields(schema: SchemaPlan, field: FormFieldPlan): string {
   const properties = field.schema.properties;
   if (typeof properties !== 'object' || properties === null || Array.isArray(properties)) {
     return '[]';
   }
   const members = Object.keys(properties as Record<string, unknown>).map(
-    (name) => `{ name: ${quote(name)}, label: ${quote(humanizeField(name))}, kind: 'text' }`,
+    (name) =>
+      `{ name: ${quote(name)}, label: t(${quote(`${schema.name}.field.${field.name}.${name}.label`)}), kind: 'text' }`,
   );
   return `[${members.join(', ')}]`;
-}
-
-function humanizeField(name: string): string {
-  const text = name
-    .split(/[_\-\s]+/)
-    .filter((p) => p.length > 0)
-    .join(' ');
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function indentAll(parts: readonly (string | null)[], depth = 1): string[] {
@@ -512,23 +535,45 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
   ].sort();
   const imports = [
     "import type { ReactElement } from 'react';",
-    "import { t } from '../../i18n.js';",
-    `import {\n  nextDirection,\n  retryAction,\n  shownFields,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${needsFieldProps ? '  type FieldProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n  type TableProps,\n} from '../contract.js';`,
+    "import { useT } from '../../i18n.js';",
+    `import {\n  cardFields,\n  nextDirection,\n  retryAction,\n  shownFields,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${needsFieldProps ? '  type FieldProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n  type TableProps,\n} from '../contract.js';`,
     `import { ${columnImports.join(', ')} } from './columns.js';`,
     `import type { ${pascal}, ${pascal}Id } from './types.js';`,
   ];
   const openButton = `<button type="button" data-testid={\`${testId(name, kind, 'open')}-\${id}\`} onClick={() => { props.onOpen(id); }}>\n  {t('common.open')}\n</button>`;
-  const openCell =
-    kind === 'list'
-      ? `<td>\n${indent(openButton)}\n</td>`
-      : `<td>\n  {id === undefined ? null : (\n${indent(openButton, 2)}\n  )}\n</td>`;
+  const openControl =
+    kind === 'list' ? openButton : `{id === undefined ? null : (\n${indent(openButton)}\n)}`;
+  const openCell = `<td>\n${indent(openControl)}\n</td>`;
   // A view row may omit the id; the list row always carries it.
   const rowKey = kind === 'list' ? 'id' : 'id ?? String(index)';
   const rowMap = kind === 'list' ? '(row) => {' : '(row, index) => {';
   const title = kind === 'list' ? `t(${quote(screen.titleKey)})` : 'props.title';
+  // The compact body (typescript/05 §6): one card per row, the first shown columns, the row action.
+  // It keeps the table's page-object ids (`-table`, `-row-<id>`, `-open-<id>`) under `data-layout="cards"`.
+  const cards = [
+    `<ul aria-label={${title}} data-testid=${tid('table')} data-layout="cards">`,
+    `  {props.rows.map(${rowMap}`,
+    `    const id = row.${idField};`,
+    '    return (',
+    `      <li key={${rowKey}} data-testid={\`${testId(name, kind, 'row')}-\${${rowKey}}\`}>`,
+    '        <dl>',
+    ...columns.map((c) =>
+      indent(
+        `{cards.has(${quote(c.column.field)}) ? (\n  <div>\n    <dt>{${labelCall(plan, `${name}.field.${c.column.field}.label`)}}</dt>\n    <dd>\n      <${componentName(c.column.field, 'Cell')} value={row.${c.column.field}} row={row} column={${c.descriptor}} />\n    </dd>\n  </div>\n) : null}`,
+        5,
+      ),
+    ),
+    '        </dl>',
+    indent(openControl, 4),
+    '      </li>',
+    '    );',
+    '  })}',
+    '</ul>',
+  ];
   const body = [
     `export function ${screen.component}(props: ${propsName}): ReactElement {`,
     ...indentAll([
+      'const t = useT();',
       ...stateHooks(schema, screen.operationId, plan.posture),
       ...collectionActions.map(
         (a) =>
@@ -540,6 +585,7 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
           `const ${componentName(field, 'Filter')} = useResolved<FieldProps<string>>(${quote(filterKey(field))}, ${quote(name)}, ${quote(field)});`,
       ),
       'const shown = shownFields(props.columns);',
+      'const cards = cardFields(props.columns);',
       ...stateReturns(plan.posture),
       ...collectionActions.map(
         (a) =>
@@ -571,6 +617,8 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
             : []),
           '{props.rows.length === 0 ? (',
           `  <Empty {...stateProps(t('common.empty'))} />`,
+          ') : props.compact ? (',
+          ...indentAll(cards),
           ') : (',
           ...indentAll([
             `<table data-testid=${tid('table')}>`,
@@ -720,7 +768,7 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
     contents: lines([
       header(source),
       "import type { ReactElement } from 'react';",
-      "import { t } from '../../i18n.js';",
+      "import { useT } from '../../i18n.js';",
       `import {\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${withHelp.length > 0 ? '  type HelpProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';`,
       `import { ${columnsConstName(schema)} } from './columns.js';`,
       `import type { ${pascal} } from './types.js';`,
@@ -737,6 +785,7 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
       '',
       `export function ${screen.component}(props: ${propsName}): ReactElement {`,
       ...indentAll([
+        'const t = useT();',
         ...stateHooks(schema, screen.operationId, plan.posture),
         ...itemActions.map(
           (a) =>
@@ -842,15 +891,17 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
     'useResolved',
     'type ActionProps',
     'type FieldProps',
+    'type HelpProps',
     ...(kind === 'edit' ? ['type ScreenStatus'] : []),
     'type StateProps',
   ].filter((v): v is string => v !== null);
+  const disclaimerKey = `${name}.screen.${kind}.disclaimer`;
   return {
     path: `domain/${name}/${screen.file}`,
     contents: lines([
       header(source),
       "import type { ReactElement } from 'react';",
-      "import { t } from '../../i18n.js';",
+      "import { useT } from '../../i18n.js';",
       "import { AgentPanelSlot } from '../AgentPanelSlot.js';",
       `import {\n${contractImports.map((i) => `  ${i},`).join('\n')}\n} from '../contract.js';`,
       optionConsts.length > 0 ? `import { ${optionConsts.join(', ')} } from './columns.js';` : null,
@@ -860,6 +911,8 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
       ...editMembers.map((m) => indent(m)),
       `  values: Partial<${payload}>;`,
       `  errors: Partial<Record<keyof ${payload}, string>>;`,
+      '  /** True once the user changed a value; the container holds navigation while set (typescript/05 §9). */',
+      '  dirty: boolean;',
       '  pending: boolean;',
       '  submitError: string | undefined;',
       `  onChange: <K extends keyof ${payload}>(field: K, value: ${payload}[K] | undefined) => void;`,
@@ -871,11 +924,15 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
       '',
       `export function ${screen.component}(props: ${propsName}): ReactElement {`,
       ...indentAll([
+        'const t = useT();',
         ...(kind === 'edit' ? stateHooks(schema, screen.operationId, plan.posture) : []),
         kind === 'create'
           ? `const ErrorState = useResolved<StateProps>('state.error', ${quote(name)}, ${quote(screen.operationId)});`
           : null,
         `const Submit = useResolved<ActionProps>(${quote(actionKey)}, ${quote(name)}, ${quote(screen.operationId)});`,
+        `// Regulated wording (typescript/05 §4): the reviewed disclaimer of this screen, empty unless a translation sets it.`,
+        `const Disclaimer = useResolved<HelpProps>('help.inline', ${quote(name)}, ${quote(screen.operationId)});`,
+        `const disclaimer = t(${quote(disclaimerKey)});`,
         ...fields.map(
           (f) =>
             `const ${componentName(f.name, 'Field')} = useResolved<FieldProps<${widgetValueType(f.key, `${payload}[${quote(f.name)}]`)}>>(${quote(f.key)}, ${quote(name)}, ${quote(f.name)});`,
@@ -891,6 +948,7 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
           `<form data-testid=${tid('screen')} noValidate onSubmit={(event) => { event.preventDefault(); props.onSubmit(); }}>`,
           ...indentAll([
             `<h1>{t(${quote(screen.titleKey)})}</h1>`,
+            `{disclaimer === '' ? null : <Disclaimer id=${tid('disclaimer')} text={disclaimer} />}`,
             ...groups.map((g) => g),
             `{props.submitError === undefined ? null : <ErrorState {...stateProps(t('common.error'), props.submitError)} />}`,
             `<AgentPanelSlot schema=${attr(name)} operationId=${attr(screen.operationId)} args={props.values} ifMatch={${kind === 'edit' ? 'props.ifMatch' : 'undefined'}} onApplied={props.onAgentApplied} disabled={props.pending} />`,
@@ -926,7 +984,7 @@ function emitCustomScreen(ctx: ScreenContext): GeneratedFile {
       `// Stub for the Tier 3 operation \`${screen.operationId}\` (hexagonal-rules typescript/12 §1).`,
       `// Replace the whole screen by registering 'screen.custom' for (${quote(name)}, ${quote(screen.operationId)}) in src/features/${name}/index.ts.`,
       "import type { ReactElement } from 'react';",
-      "import { t } from '../../i18n.js';",
+      "import { useT } from '../../i18n.js';",
       "import {\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';",
       '',
       `export interface ${propsName} {`,
@@ -941,6 +999,7 @@ function emitCustomScreen(ctx: ScreenContext): GeneratedFile {
       '',
       `export function ${screen.component}(props: ${propsName}): ReactElement {`,
       ...indentAll([
+        'const t = useT();',
         ...stateHooks(schema, screen.operationId, plan.posture),
         `const Run = useResolved<ActionProps>(${quote(action?.key ?? 'action.custom')}, ${quote(name)}, ${quote(screen.operationId)});`,
         ...stateReturns(plan.posture, 'undefined'),

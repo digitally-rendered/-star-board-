@@ -27,6 +27,12 @@ export {
   ScreenShell,
   type ScreenKind,
 } from './screens/ScreenShell.js';
+export { SkipToContent, type SkipToContentProps } from './screens/SkipToContent.js';
+export {
+  UNSAVED_CHANGES_TARGET,
+  UnsavedChangesDialog,
+  type UnsavedChangesDialogProps,
+} from './dialogs/UnsavedChangesDialog.js';
 export { useSchemaForm, type SchemaForm } from './form/useSchemaForm.js';
 export {
   COLOR_SCHEME_ATTRIBUTE,
@@ -36,8 +42,11 @@ export {
 } from './theme/createTheme.js';
 export {
   cssVariablesToText,
+  HOST_THEME_SELECTOR,
   ThemeRoot,
   TOKENS_STYLE_ATTRIBUTE,
+  withHostTheme,
+  type HostTheme,
   type ThemeRootProps,
 } from './theme/ThemeRoot.js';
 export { RENDERER_DEFAULT_MESSAGES, useText, type RendererMessageKey } from './i18n.js';

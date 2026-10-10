@@ -3,6 +3,7 @@ import Breadcrumbs from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useId } from 'react';
 import type { ScreenShellProps } from '../contracts.js';
 import { useText } from '../i18n.js';
 
@@ -14,18 +15,23 @@ export const MAIN_CONTENT_ID = 'main-content';
 /**
  * `screen.<kind>` — the page shell: one `h1`, breadcrumbs, the actions group and a `main` landmark
  * that is the skip-to-content target. Breadcrumb links are plain anchors; an app on a client router
- * registers its own shell override.
+ * registers its own shell override. With `embedded` (typescript/05 §8: a panel inside a host page)
+ * the landmark and the `h1` belong to the host, so the shell is a `section` labelled by its `h2`.
  */
 export function ScreenShell(props: ScreenShellProps & { kind?: ScreenKind }) {
   const t = useText();
+  const headingId = useId();
+  const embedded = props.embedded ?? false;
   return (
     <Box
-      component="main"
-      id={MAIN_CONTENT_ID}
-      tabIndex={-1}
+      component={embedded ? 'section' : 'main'}
+      id={embedded ? undefined : MAIN_CONTENT_ID}
+      tabIndex={embedded ? undefined : -1}
+      aria-labelledby={embedded ? headingId : undefined}
       data-testid="screen"
       data-screen-kind={props.kind ?? 'custom'}
-      sx={{ p: 3, outline: 'none' }}
+      data-embedded={embedded ? 'true' : undefined}
+      sx={{ p: embedded ? 2 : 3, outline: 'none' }}
     >
       {props.breadcrumbs !== undefined && props.breadcrumbs.length > 0 && (
         <Breadcrumbs aria-label={t('screen.breadcrumbs')} sx={{ mb: 1 }}>
@@ -52,7 +58,7 @@ export function ScreenShell(props: ScreenShellProps & { kind?: ScreenKind }) {
         spacing={2}
         sx={{ mb: 2, alignItems: 'center', justifyContent: 'space-between' }}
       >
-        <Typography component="h1" variant="h4">
+        <Typography id={headingId} component={embedded ? 'h2' : 'h1'} variant="h4">
           {props.title}
         </Typography>
         {props.actions !== undefined && (
@@ -67,7 +73,7 @@ export function ScreenShell(props: ScreenShellProps & { kind?: ScreenKind }) {
           </Stack>
         )}
       </Stack>
-      <Box component="section" data-testid="screen-body">
+      <Box component={embedded ? 'div' : 'section'} data-testid="screen-body">
         {props.children}
       </Box>
     </Box>

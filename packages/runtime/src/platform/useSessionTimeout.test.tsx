@@ -1,0 +1,84 @@
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ACTIVITY_THROTTLE_MS, useSessionTimeout } from './useSessionTimeout.js';
+
+describe('useSessionTimeout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('warns before the idle limit, then expires once', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() =>
+      useSessionTimeout({ idleMs: 10_000, warningMs: 2_000, onTimeout }),
+    );
+    expect(result.current.state).toBe('active');
+    act(() => {
+      vi.advanceTimersByTime(7_999);
+    });
+    expect(result.current.state).toBe('active');
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.state).toBe('warning');
+    expect(onTimeout).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+      window.dispatchEvent(new Event('keydown'));
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+    expect(result.current.state).toBe('expired');
+  });
+
+  it('activity and reset() restart the timer; a burst re-arms once per throttle window', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() => useSessionTimeout({ idleMs: 10_000, onTimeout }));
+    act(() => {
+      vi.advanceTimersByTime(8_500);
+    });
+    expect(result.current.state).toBe('warning');
+    act(() => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+    expect(result.current.state).toBe('active');
+    act(() => {
+      vi.advanceTimersByTime(9_000);
+    });
+    expect(onTimeout).not.toHaveBeenCalled();
+    act(() => {
+      result.current.reset();
+    });
+    act(() => {
+      vi.advanceTimersByTime(ACTIVITY_THROTTLE_MS - 1);
+      window.dispatchEvent(new Event('scroll'));
+      vi.advanceTimersByTime(9_000);
+    });
+    // The scroll inside the throttle window did not re-arm: 10s after reset the session expires.
+    expect(result.current.state).toBe('warning');
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing when disabled', () => {
+    const onTimeout = vi.fn();
+    const { result } = renderHook(() =>
+      useSessionTimeout({ idleMs: 1_000, onTimeout, enabled: false }),
+    );
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+    expect(result.current.state).toBe('active');
+    expect(onTimeout).not.toHaveBeenCalled();
+  });
+});

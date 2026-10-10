@@ -3,6 +3,7 @@ import { LIST_COLUMN_TYPES } from '@star-board/tokens';
 import type { ElementType } from 'react';
 import { CreateAction, CustomAction, DeleteAction, UpdateAction } from './actions/ActionButton.js';
 import { AGENT_PANEL_TARGET, AgentPanel } from './agent/AgentPanel.js';
+import { UNSAVED_CHANGES_TARGET, UnsavedChangesDialog } from './dialogs/UnsavedChangesDialog.js';
 import {
   BooleanField,
   DateTimeField,
@@ -65,9 +66,11 @@ export const DEFAULT_COMPONENTS: ReadonlyMap<ComponentKey, AnyComponent> = new M
 
 /**
  * Registers every default as the universal match (`schema '*'`, `target '*'`, no scope,
- * `source 'generated'`), so any override at any specificity wins (shared/01 §6a). One more
- * registration, `screen.custom` for target `agent-panel`, is the agent affordance the generated
- * `AgentPanelSlot` resolves; it is target-exact so it never shadows the universal `screen.custom`.
+ * `source 'generated'`), so any override at any specificity wins (shared/01 §6a). Two more
+ * registrations under `screen.custom` are target-exact, so they never shadow the universal
+ * `screen.custom`: target `agent-panel` is the agent affordance the generated `AgentPanelSlot`
+ * resolves, and target `unsaved-changes` the dialog the generated `UnsavedChangesSlot` resolves
+ * (typescript/05 §9) — shared primitives reached through the registry, not a new contract key.
  */
 export function registerDefaults(registry: ComponentRegistry): void {
   for (const [key, component] of DEFAULT_COMPONENTS) {
@@ -80,7 +83,14 @@ export function registerDefaults(registry: ComponentRegistry): void {
     component: AgentPanel,
     source: 'generated',
   });
+  registry.register({
+    key: 'screen.custom',
+    schema: '*',
+    target: UNSAVED_CHANGES_TARGET,
+    component: UnsavedChangesDialog,
+    source: 'generated',
+  });
 }
 
 /** Registrations beyond the one-per-key defaults; the parity test accounts for them. */
-export const EXTRA_REGISTRATIONS = 1;
+export const EXTRA_REGISTRATIONS = 2;

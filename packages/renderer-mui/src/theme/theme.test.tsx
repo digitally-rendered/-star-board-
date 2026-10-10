@@ -9,7 +9,12 @@ import {
 } from '@star-board/tokens';
 import { describe, expect, it, vi } from 'vitest';
 import { COLOR_SCHEME_ATTRIBUTE, createTheme } from './createTheme.js';
-import { cssVariablesToText, ThemeRoot, TOKENS_STYLE_ATTRIBUTE } from './ThemeRoot.js';
+import {
+  cssVariablesToText,
+  ThemeRoot,
+  TOKENS_STYLE_ATTRIBUTE,
+  withHostTheme,
+} from './ThemeRoot.js';
 
 // jsdom rewrites `import.meta.url` to http, so paths come from `import.meta.dirname`.
 const HERE = import.meta.dirname;
@@ -91,6 +96,32 @@ describe('ThemeRoot', () => {
     expect(text).toContain('--sb-color-action-primary:');
     expect(text).not.toMatch(/--sb-color-primitive/);
     expect(getByText('child')).toBeTruthy();
+  });
+
+  it('hostTheme variables are written last at root and override the tokens in every mode', () => {
+    const set = referenceSet();
+    const cssVariables = buildCssVariables(set, REFERENCE_MODES);
+    const { container } = render(
+      <ThemeRoot
+        theme={createTheme(buildMuiThemeInput(set))}
+        cssVariables={cssVariables}
+        hostTheme={{ '--sb-color-action-primary': 'var(--host-brand)', '--host-only': '1px' }}
+      >
+        <p>child</p>
+      </ThemeRoot>,
+    );
+    const text = container.querySelector(`style[${TOKENS_STYLE_ATTRIBUTE}]`)?.textContent ?? '';
+    const blocks = text.split('\n}').map((b) => b.trim());
+    const last = blocks.at(-2) ?? '';
+    expect(last.startsWith(':root {')).toBe(true);
+    expect(last).toContain('--sb-color-action-primary: var(--host-brand);');
+    expect(last).toContain('--host-only: 1px;');
+    expect(text.indexOf('[data-mode="dark"] {')).toBeLessThan(text.lastIndexOf(':root {'));
+    // The tokens' own root block is gone: the host block replaces it, carrying the rest unchanged.
+    expect(text.match(/:root \{/g)).toHaveLength(1);
+    expect(last).toContain('--sb-font-body:');
+    expect(withHostTheme(cssVariables, undefined)).toBe(cssVariables);
+    expect(withHostTheme(cssVariables, {})).toBe(cssVariables);
   });
 
   it('cssVariablesToText is deterministic and one declaration per line', () => {
