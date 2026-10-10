@@ -4,12 +4,22 @@
 
 Mirror of the plan's Part 7. Phases ordered by architectural dependency; checkpoints block; HARD GATE 1 after parity, HARD GATE 2 after CI green on main.
 
-## Implementation Status Audit (2026-10-09)
+## Implementation Status Audit (2026-10-10)
 
-| Area               | Status  | Evidence                                                        |
-| ------------------ | ------- | --------------------------------------------------------------- |
-| workspace scaffold | Built   | `ls packages` lists nine packages; `pnpm check` on the skeleton |
-| everything else    | Missing | —                                                               |
+| Area                                                            | Status      | Evidence                                                                                               |
+| --------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| workspace, tooling, specs (tasks 1–3)                           | Built       | `pnpm check`; `node tools/check_waves.ts` 14 ✓; `CONTRADICTIONS.md` 12 rows, none open                 |
+| core, spec, tokens, runtime (4–8)                               | Built       | `pnpm test` projects unit:core/spec/tokens/runtime                                                     |
+| renderer-mui, generator, cli, example (9–14)                    | Built       | example generated from `fixtures/petstore.json`; `pnpm codegen:check` clean; Playwright workflow green |
+| testing parity + harness, agent affordance, HARD GATE 1 (15–18) | Built       | parity report, hide/deny matrix, override round trip, 475 tests, coverage 90/81/96/91                  |
+| Figma adapter (19)                                              | Built       | round trip exact + property; Code Connect emission                                                     |
+| Storybook stories and matrix (20)                               | Built       | 29 story files, `build-storybook` succeeds                                                             |
+| visual baseline capture (21)                                    | In progress | `packages/storybook/scripts/capture-baselines.ts` (this session)                                       |
+| platform rules (22)                                             | Built       | i18n lint, unsaved changes, session timeout, compact lists, embedded shell, disclaimer                 |
+| docs (23)                                                       | Built       | `docs/*.md`                                                                                            |
+| HARD GATE 2 (24)                                                | Passed      | CI green on main; `pnpm -r publish --dry-run` lists nine packages                                      |
+| rules backfill (25)                                             | Built       | hexagonal-rules commit 9e8e51f                                                                         |
+| handoff (26)                                                    | In progress | this audit, `handoff.json`, `.claude/state/progress.md`                                                |
 
 ## Dependency Graph and Detailed Sequencing
 

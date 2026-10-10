@@ -1,7 +1,43 @@
 {
-  "updated": "2026-10-09",
-  "ready": [],
-  "in_progress": ["00-workspace"],
+  "updated": "2026-10-10",
+  "ready": [
+    "00-workspace",
+    "01-core-contract-registry",
+    "02-spec-feature-model",
+    "03-tokens-theme",
+    "04-runtime-hooks-client",
+    "05-renderer-mui",
+    "06-generator",
+    "07-testing-parity",
+    "08-cli",
+    "09-agent-affordance",
+    "10-figma-code-connect",
+    "12-examples-docs",
+    "13-rules-backfill"
+  ],
+  "in_progress": ["11-storybook-visual"],
   "blocked": [],
-  "remediation": []
+  "remediation": [
+    {
+      "id": "R1",
+      "class": "C",
+      "finding": "backends do not emit the shared/02 \u00a76a extensions; fixtures/petstore.json is the hand-authored reference",
+      "owner": "slip-stream, stellar-drive, Syntact",
+      "status": "open"
+    },
+    {
+      "id": "R2",
+      "class": "B",
+      "finding": "tokens sync and map-components exist as functions, not CLI commands",
+      "owner": "cli",
+      "status": "open"
+    },
+    {
+      "id": "R3",
+      "class": "B",
+      "finding": "generated error state shows backend error.message (typescript/05 \u00a72 wants mapped wording)",
+      "owner": "generator",
+      "status": "open"
+    }
+  ]
 }
