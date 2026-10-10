@@ -174,4 +174,19 @@ describe('useSessionTimeout fails closed', () => {
     expect(result.current.state).toBe('expired');
     expect(onTimeout).toHaveBeenCalledTimes(1);
   });
+
+  it('a fresh events array on every render does not re-arm the timer', () => {
+    const onTimeout = vi.fn();
+    const { result, rerender } = renderHook(() =>
+      useSessionTimeout({ idleMs: 10_000, onTimeout, events: ['keydown', 'pointerdown'] }),
+    );
+    for (let i = 0; i < 20; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      rerender();
+    }
+    expect(result.current.state).toBe('expired');
+    expect(onTimeout).toHaveBeenCalledTimes(1);
+  });
 });

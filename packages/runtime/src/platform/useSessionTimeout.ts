@@ -38,8 +38,13 @@ export const ACTIVITY_EVENTS: readonly string[] = [
 ];
 
 export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeout {
-  const { idleMs, onTimeout, events = ACTIVITY_EVENTS, enabled = true } = options;
+  const { idleMs, onTimeout, enabled = true } = options;
   const warningMs = options.warningMs ?? Math.floor(idleMs / 5);
+  // The event list is keyed by value: a consumer passing a fresh array on every render must not
+  // re-arm the timer each render (that would keep a session alive forever).
+  const eventsKey = (options.events ?? ACTIVITY_EVENTS).join(',');
+  const eventsRef = useRef<readonly string[]>(options.events ?? ACTIVITY_EVENTS);
+  eventsRef.current = options.events ?? ACTIVITY_EVENTS;
   const [state, setState] = useState<SessionTimeoutState>('active');
   // The latest callback, so a re-render never re-arms the timer.
   const onTimeoutRef = useRef(onTimeout);
@@ -90,6 +95,7 @@ export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeou
       if (event.type === 'visibilitychange') return;
       if (Date.now() - lastResetRef.current >= ACTIVITY_THROTTLE_MS) reset();
     };
+    const events = eventsRef.current;
     for (const name of events) window.addEventListener(name, activity, { passive: true });
     document.addEventListener('visibilitychange', activity);
     return () => {
@@ -98,7 +104,8 @@ export function useSessionTimeout(options: SessionTimeoutOptions): SessionTimeou
       for (const name of events) window.removeEventListener(name, activity);
       document.removeEventListener('visibilitychange', activity);
     };
-  }, [enabled, epoch, events, expire, idleMs, reset, warningMs]);
+    // eventsKey stands in for the events array so an unstable array identity cannot re-arm.
+  }, [enabled, epoch, eventsKey, expire, idleMs, reset, warningMs]);
 
   return { state, reset };
 }
