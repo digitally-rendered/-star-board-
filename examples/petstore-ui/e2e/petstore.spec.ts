@@ -6,9 +6,16 @@ import { expect, test, type Page } from '@playwright/test';
  * 404, with axe on every page. Same page-object vocabulary as the vitest workflow.
  */
 
+/** Fails with every offending element and axe's own summary, so a CI failure is actionable. */
 async function axeClean(page: Page): Promise<void> {
   const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  const report = results.violations.flatMap((v) =>
+    v.nodes.map(
+      (n) =>
+        `${v.id} @ ${n.target.join(' ')}: ${(n.failureSummary ?? v.help).replace(/\s+/g, ' ')}`,
+    ),
+  );
+  expect(report, `axe on ${page.url()}`).toEqual([]);
 }
 
 async function selectOption(page: Page, field: string, value: string): Promise<void> {
