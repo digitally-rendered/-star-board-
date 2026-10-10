@@ -1,0 +1,110 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "color": {
+    "primitive": {
+      "blue": {
+        "500": {
+          "$type": "color",
+          "$value": "#2962ff"
+        }
+      },
+      "grey": {
+        "900": {
+          "$type": "color",
+          "$value": "#121212"
+        },
+        "50": {
+          "$type": "color",
+          "$value": "#fafafa"
+        }
+      },
+      "red": {
+        "600": {
+          "$type": "color",
+          "$value": "#d32f2f"
+        }
+      }
+    },
+    "surface": {
+      "default": {
+        "$type": "color",
+        "$value": "{color.primitive.grey.50}",
+        "$extensions": {
+          "star-board": {
+            "modes": {
+              "dark": "{color.primitive.grey.900}",
+              "high-contrast": "#ffffff"
+            }
+          }
+        }
+      }
+    },
+    "text": {
+      "danger": {
+        "$type": "color",
+        "$value": "{color.primitive.red.600}",
+        "$extensions": {
+          "star-board": {
+            "modes": {
+              "dark": "#ff6659",
+              "high-contrast": "#b00020"
+            }
+          }
+        }
+      }
+    },
+    "action": {
+      "primary": {
+        "$type": "color",
+        "$value": "{color.primitive.blue.500}",
+        "$extensions": {
+          "star-board": {
+            "modes": {
+              "dark": "#82b1ff",
+              "high-contrast": "#0000ff"
+            }
+          }
+        }
+      }
+    }
+  },
+  "space": {
+    "1": {
+      "$type": "dimension",
+      "$value": "4px"
+    },
+    "2": {
+      "$type": "dimension",
+      "$value": "8px"
+    },
+    "3": {
+      "$type": "dimension",
+      "$value": "16px"
+    }
+  },
+  "radius": {
+    "control": {
+      "$type": "dimension",
+      "$value": "6px"
+    }
+  },
+  "font": {
+    "body": {
+      "$type": "fontFamily",
+      "$value": ["Inter", "system-ui", "sans-serif"]
+    }
+  },
+  "density": {
+    "row": {
+      "$type": "dimension",
+      "$value": "44px",
+      "$extensions": {
+        "star-board": {
+          "modes": {
+            "dense": "32px"
+          }
+        }
+      }
+    }
+  }
+}

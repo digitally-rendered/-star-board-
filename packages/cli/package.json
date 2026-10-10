@@ -1,0 +1,40 @@
+{
+  "name": "@star-board/cli",
+  "version": "0.0.1",
+  "description": "star-board generate | check | init | tokens build | tokens sync | parity | map-components.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "star-board-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@star-board/core": "workspace:*",
+    "@star-board/spec": "workspace:*",
+    "@star-board/tokens": "workspace:*",
+    "@star-board/generator": "workspace:*",
+    "@star-board/testing": "workspace:*",
+    "commander": "15.0.0"
+  },
+  "star-board": {
+    "layer": "L6"
+  }
+}

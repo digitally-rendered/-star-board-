@@ -1,0 +1,67 @@
+{
+  "name": "star-board",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Generated frontend track: default React screens, typed client, hooks and a component registry generated from an OpenAPI 3.1 document (monorepo)",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/**' run build",
+    "typecheck": "tsc -b tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:unit": "vitest run --project 'unit:*'",
+    "test:contract": "vitest run --project 'contract:*'",
+    "test:arch": "vitest run --project architecture",
+    "test:property": "vitest run --project property",
+    "test:a11y": "vitest run --project a11y",
+    "test:coverage": "vitest run --coverage",
+    "check:arch": "depcruise --config tools/depcruise.config.cjs packages",
+    "check:waves": "node tools/check_waves.ts",
+    "check:ratchet": "node tools/ratchet.ts",
+    "check:noskip": "node tools/noskip.ts",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:arch && pnpm check:waves && pnpm check:ratchet && pnpm check:noskip",
+    "codegen:check": "pnpm -F @star-board/cli run check:example",
+    "changeset": "changeset",
+    "release": "pnpm build && changeset publish",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "1.0.1",
+    "@changesets/cli": "3.0.3",
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.4",
+    "@vitest/coverage-v8": "5.0.3",
+    "dependency-cruiser": "18.5.0",
+    "eslint": "10.12.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-boundaries": "7.2.0",
+    "fast-check": "4.10.2",
+    "globals": "17.13.0",
+    "husky": "9.1.7",
+    "knip": "6.41.0",
+    "lint-staged": "17.6.0",
+    "prettier": "3.9.9",
+    "tsdown": "0.23.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mts,cts}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
+  }
+}

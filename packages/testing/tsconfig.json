@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".tsbuild",
+    "tsBuildInfoFile": ".tsbuild/.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "types": ["node", "react"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "*.config.ts"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../spec"
+    },
+    {
+      "path": "../runtime"
+    },
+    {
+      "path": "../renderer-mui"
+    },
+    {
+      "path": "../generator"
+    }
+  ]
+}

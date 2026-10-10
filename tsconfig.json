@@ -1,0 +1,44 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".tsbuild",
+    "tsBuildInfoFile": ".tsbuild/.tsbuildinfo",
+    "emitDeclarationOnly": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["tools/**/*.ts", "*.config.ts"],
+  "exclude": [".tsbuild", "node_modules", "packages", "examples"],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/spec"
+    },
+    {
+      "path": "packages/tokens"
+    },
+    {
+      "path": "packages/runtime"
+    },
+    {
+      "path": "packages/renderer-mui"
+    },
+    {
+      "path": "packages/generator"
+    },
+    {
+      "path": "packages/testing"
+    },
+    {
+      "path": "packages/storybook"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "examples/petstore-ui"
+    }
+  ]
+}

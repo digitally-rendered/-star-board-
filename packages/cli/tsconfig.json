@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": ".tsbuild",
+    "tsBuildInfoFile": ".tsbuild/.tsbuildinfo",
+    "emitDeclarationOnly": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "*.config.ts"],
+  "references": [
+    {
+      "path": "../core"
+    },
+    {
+      "path": "../spec"
+    },
+    {
+      "path": "../tokens"
+    },
+    {
+      "path": "../generator"
+    },
+    {
+      "path": "../testing"
+    }
+  ]
+}

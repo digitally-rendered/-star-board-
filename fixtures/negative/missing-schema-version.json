@@ -1,0 +1,224 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "petstore",
+    "version": "2026.10.0",
+    "x-ownership-posture": "404"
+  },
+  "paths": {
+    "/pet": {
+      "get": {
+        "operationId": "pet_list",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:read"],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "operationId": "pet_create",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:write"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created"
+          },
+          "422": {
+            "description": "invalid"
+          }
+        }
+      }
+    },
+    "/pet/{id}": {
+      "get": {
+        "operationId": "pet_get",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:read"],
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "404": {
+            "description": "missing"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "pet_update",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:write"],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          },
+          "412": {
+            "description": "stale"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "pet_delete",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:delete"],
+        "responses": {
+          "204": {
+            "description": "gone"
+          }
+        }
+      }
+    },
+    "/pet/{id}/_history": {
+      "get": {
+        "operationId": "pet_history",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:read"],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    },
+    "/views/available-pets": {
+      "get": {
+        "operationId": "available_pets_query",
+        "tags": ["pet"],
+        "x-capabilities": ["pet:read"],
+        "x-view": {
+          "schema": "pet",
+          "projection": ["name", "species", "status"],
+          "filters": [
+            {
+              "field": "species",
+              "op": "_eq"
+            }
+          ],
+          "sort": [
+            {
+              "field": "name",
+              "dir": "asc"
+            }
+          ],
+          "limits": {
+            "default": 25,
+            "max": 100
+          },
+          "roles": ["customer", "staff"]
+        },
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "x-owner-field": "created_by",
+        "required": ["entity_id", "name", "species", "status"],
+        "properties": {
+          "entity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "record_version": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "x-ui-order": 1
+          },
+          "species": {
+            "type": "string",
+            "enum": ["dog", "cat", "bird"],
+            "x-ui-order": 2,
+            "x-ui-widget": "select"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "pending", "sold"],
+            "x-ui-order": 3
+          },
+          "notes": {
+            "type": "string",
+            "x-ui-group": "details",
+            "x-notes-reason": "Free text shown to staff only; never required so a sale is never blocked on paperwork."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "string"
+          }
+        }
+      },
+      "PetCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-schema-version": "1.0.0",
+        "required": ["name", "species"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "species": {
+            "type": "string",
+            "enum": ["dog", "cat", "bird"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "pending", "sold"],
+            "default": "available"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "PetUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-schema-version": "1.0.0",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "pending", "sold"]
+          },
+          "notes": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    }
+  }
+}

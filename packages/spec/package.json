@@ -1,0 +1,36 @@
+{
+  "name": "@star-board/spec",
+  "version": "0.0.1",
+  "description": "OpenAPI 3.1 document loader producing a validated FeatureModel; fails closed on a missing extension.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "star-board-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@star-board/core": "workspace:*",
+    "@redocly/openapi-core": "2.62.1"
+  },
+  "star-board": {
+    "layer": "L1"
+  }
+}

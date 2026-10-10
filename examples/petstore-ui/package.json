@@ -1,0 +1,28 @@
+{
+  "name": "@star-board/example-petstore-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "generate": "star-board generate --document ../../fixtures/petstore.json --out src/generated --features src/features"
+  },
+  "dependencies": {
+    "@star-board/core": "workspace:*",
+    "@star-board/runtime": "workspace:*",
+    "@star-board/renderer-mui": "workspace:*",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@star-board/cli": "workspace:*",
+    "@star-board/testing": "workspace:*",
+    "vite": "8.3.4",
+    "@vitejs/plugin-react": "6.1.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3"
+  }
+}

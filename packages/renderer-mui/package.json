@@ -1,0 +1,57 @@
+{
+  "name": "@star-board/renderer-mui",
+  "version": "0.0.1",
+  "description": "MUI implementation of every component contract key; DataGrid list and grid; forms via React Hook Form and zod; theme from tokens; registers as the universal match.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "star-board-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@star-board/core": "workspace:*",
+    "@star-board/runtime": "workspace:*",
+    "@star-board/tokens": "workspace:*",
+    "@mui/material": "9.5.0",
+    "@mui/x-data-grid": "9.15.0",
+    "@mui/icons-material": "9.5.0",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "react-hook-form": "7.89.0",
+    "@hookform/resolvers": "5.9.1"
+  },
+  "star-board": {
+    "layer": "L3"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "devDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "28.1.0"
+  }
+}

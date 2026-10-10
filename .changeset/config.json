@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.0.3/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "digitally-rendered/syntact" }],
+  "commit": false,
+  "fixed": [],
+  "linked": [["@syntact/*"]],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": ["@syntact/benchmarks", "@syntact/example-petstore"]
+}
