@@ -2,20 +2,21 @@
 import type { ReactElement } from 'react';
 import { useT } from '../../i18n.js';
 import {
-  cardFields,
-  nextDirection,
+  layout,
+  localisedColumns,
   retryAction,
-  shownFields,
   stateProps,
   useResolved,
+  visibleColumns,
   type ActionProps,
   type CellProps,
   type FieldProps,
+  type ListProps,
   type ScreenStatus,
   type StateProps,
   type TableProps,
 } from '../contract.js';
-import { AVAILABLE_PETS_VIEW_COLUMNS, PET_SPECIES_OPTIONS } from './columns.js';
+import { PET_SPECIES_OPTIONS } from './columns.js';
 import type { Pet, PetId } from './types.js';
 
 export interface PetGridScreenProps extends TableProps<Partial<Pet>> {
@@ -30,154 +31,62 @@ export interface PetGridScreenProps extends TableProps<Partial<Pet>> {
 
 export function PetGridScreen(props: PetGridScreenProps): ReactElement {
   const t = useT();
-  const Loading = useResolved<StateProps>('state.loading', 'pet', 'available_pets_query');
   const ErrorState = useResolved<StateProps>('state.error', 'pet', 'available_pets_query');
-  const Empty = useResolved<StateProps>('state.empty', 'pet', 'available_pets_query');
   // Posture 404 (hexagonal-rules shared/01 §5): what a missing capability shows.
   const Denied = useResolved<StateProps>('state.empty', 'pet', 'available_pets_query');
+  // The table body (typescript/05 §6): the renderer registers its DataGrid at target `table`; the same
+  // props drive the compact card list, and an app replaces the body per schema at these coordinates.
+  const Table = useResolved<ListProps<Partial<Pet>>>('screen.grid', 'pet', 'table');
   const NameCell = useResolved<CellProps>('list.column.string', 'pet', 'name');
   const SpeciesCell = useResolved<CellProps>('list.column.enum', 'pet', 'species');
   const StatusCell = useResolved<CellProps>('list.column.enum', 'pet', 'status');
   const SpeciesFilter = useResolved<FieldProps<string>>('field.select', 'pet', 'species');
-  const shown = shownFields(props.columns);
-  const cards = cardFields(props.columns);
-  if (props.status === 'loading') return <Loading {...stateProps(t('common.loading'))} />;
+  // Cell renderers by field, each resolved at (schema, field) so a column override reaches the table.
+  const cells = { name: NameCell, species: SpeciesCell, status: StatusCell };
+  // Column headers in the provider's locale; columns.ts carries the defaults.
+  const headers = { name: t('pet.field.name.label'), species: t('pet.field.species.label'), status: t('pet.field.status.label') };
   if (props.status === 'forbidden') return <Denied {...stateProps(t('common.notFound'), props.error)} />;
   if (props.status === 'error') {
     return <ErrorState {...stateProps(t('common.error'), props.error, retryAction(t('common.retry'), props.retry))} />;
   }
   return (
     <section data-testid="pet-grid-screen">
-      <header data-testid="pet-grid-header">
-        <h1>{props.title}</h1>
-        <div role="toolbar" aria-label={props.title} data-testid="pet-grid-actions">
+      <header data-testid="pet-grid-header" style={layout.header}>
+        <h1 style={layout.heading}>{props.title}</h1>
+        <div role="toolbar" aria-label={props.title} data-testid="pet-grid-actions" style={layout.toolbar}>
         </div>
       </header>
-      <div role="search" aria-label={t('common.filter')} data-testid="pet-grid-filters">
+      <div role="search" aria-label={t('common.filter')} data-testid="pet-grid-filters" style={layout.filters}>
         {props.filterable.includes('species') ? (
-          <SpeciesFilter
-            name="species"
-            label={t('pet.field.species.label')}
-            required={false}
-            value={props.filters['species'] ?? ''}
-            onChange={(value) => { props.onFilter('species', value); }}
-            options={[...PET_SPECIES_OPTIONS]}
-          />
+          <div style={layout.filter}>
+            <SpeciesFilter
+              name="species"
+              label={t('pet.field.species.label')}
+              required={false}
+              value={props.filters['species'] ?? ''}
+              onChange={(value) => { props.onFilter('species', value); }}
+              options={[...PET_SPECIES_OPTIONS]}
+            />
+          </div>
         ) : null}
       </div>
-      {props.rows.length === 0 ? (
-        <Empty {...stateProps(t('common.empty'))} />
-      ) : props.compact ? (
-        <ul aria-label={props.title} data-testid="pet-grid-table" data-layout="cards">
-          {props.rows.map((row, index) => {
-            const id = row.entity_id;
-            return (
-              <li key={id ?? String(index)} data-testid={`pet-grid-row-${id ?? String(index)}`}>
-                <dl>
-                  {cards.has('name') ? (
-                    <div>
-                      <dt>{t('pet.field.name.label')}</dt>
-                      <dd>
-                        <NameCell value={row.name} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.name} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('species') ? (
-                    <div>
-                      <dt>{t('pet.field.species.label')}</dt>
-                      <dd>
-                        <SpeciesCell value={row.species} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.species} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('status') ? (
-                    <div>
-                      <dt>{t('pet.field.status.label')}</dt>
-                      <dd>
-                        <StatusCell value={row.status} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.status} />
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-                {id === undefined ? null : (
-                  <button type="button" data-testid={`pet-grid-open-${id}`} onClick={() => { props.onOpen(id); }}>
-                    {t('common.open')}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <table data-testid="pet-grid-table">
-          <thead>
-            <tr>
-              {shown.has('name') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-grid-sort-name" onClick={() => { props.onSort('name', nextDirection(props.sort, 'name')); }}>
-                    {t('pet.field.name.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('species') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-grid-sort-species" onClick={() => { props.onSort('species', nextDirection(props.sort, 'species')); }}>
-                    {t('pet.field.species.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('status') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-grid-sort-status" onClick={() => { props.onSort('status', nextDirection(props.sort, 'status')); }}>
-                    {t('pet.field.status.label')}
-                  </button>
-                </th>
-              ) : null}
-              <th scope="col">{t('common.open')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.rows.map((row, index) => {
-              const id = row.entity_id;
-              return (
-                <tr key={id ?? String(index)} data-testid={`pet-grid-row-${id ?? String(index)}`}>
-                  {shown.has('name') ? (
-                    <td>
-                      <NameCell value={row.name} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.name} />
-                    </td>
-                  ) : null}
-                  {shown.has('species') ? (
-                    <td>
-                      <SpeciesCell value={row.species} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.species} />
-                    </td>
-                  ) : null}
-                  {shown.has('status') ? (
-                    <td>
-                      <StatusCell value={row.status} row={row} column={AVAILABLE_PETS_VIEW_COLUMNS.status} />
-                    </td>
-                  ) : null}
-                  <td>
-                    {id === undefined ? null : (
-                      <button type="button" data-testid={`pet-grid-open-${id}`} onClick={() => { props.onOpen(id); }}>
-                        {t('common.open')}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-      <nav aria-label={t('common.page')} data-testid="pet-grid-pager">
-        <button type="button" data-testid="pet-grid-page-previous" disabled={props.page.page <= 1} onClick={() => { props.onPage(props.page.page - 1); }}>
-          {t('common.previous')}
-        </button>
-        <span data-testid="pet-grid-page-current">{props.page.page}</span>
-        <button type="button" data-testid="pet-grid-page-next" disabled={props.page.page * props.page.pageSize >= props.page.total} onClick={() => { props.onPage(props.page.page + 1); }}>
-          {t('common.next')}
-        </button>
-      </nav>
+      <Table
+        rows={props.rows}
+        columns={localisedColumns(visibleColumns(props.columns), headers)}
+        cells={cells}
+        total={props.page.total}
+        page={props.page.page - 1}
+        pageSize={props.page.pageSize}
+        onPage={(page) => { props.onPage(page + 1); }}
+        onSort={props.onSort}
+        onFilter={props.onFilter}
+        onRowClick={(row) => { if (row.entity_id !== undefined) props.onOpen(row.entity_id); }}
+        loading={props.status === 'loading'}
+        getRowId={(row) => row.entity_id ?? JSON.stringify(row)}
+        emptyLabel={t('common.empty')}
+        compact={props.compact}
+        testIdPrefix="pet-grid"
+      />
     </section>
   );
 }

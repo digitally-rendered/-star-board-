@@ -2,19 +2,19 @@
 import type { ReactElement } from 'react';
 import { useT } from '../../i18n.js';
 import {
-  cardFields,
-  nextDirection,
+  layout,
+  localisedColumns,
   retryAction,
-  shownFields,
   stateProps,
   useResolved,
+  visibleColumns,
   type ActionProps,
   type CellProps,
+  type ListProps,
   type ScreenStatus,
   type StateProps,
   type TableProps,
 } from '../contract.js';
-import { PET_COLUMNS } from './columns.js';
 import type { Pet, PetId } from './types.js';
 
 export interface PetListScreenProps extends TableProps<Pet> {
@@ -27,12 +27,13 @@ export interface PetListScreenProps extends TableProps<Pet> {
 
 export function PetListScreen(props: PetListScreenProps): ReactElement {
   const t = useT();
-  const Loading = useResolved<StateProps>('state.loading', 'pet', 'pet_list');
   const ErrorState = useResolved<StateProps>('state.error', 'pet', 'pet_list');
-  const Empty = useResolved<StateProps>('state.empty', 'pet', 'pet_list');
   // Posture 404 (hexagonal-rules shared/01 §5): what a missing capability shows.
   const Denied = useResolved<StateProps>('state.empty', 'pet', 'pet_list');
   const PetCreateAction = useResolved<ActionProps>('action.create', 'pet', 'pet_create');
+  // The table body (typescript/05 §6): the renderer registers its DataGrid at target `table`; the same
+  // props drive the compact card list, and an app replaces the body per schema at these coordinates.
+  const Table = useResolved<ListProps<Pet>>('screen.list', 'pet', 'table');
   const NameCell = useResolved<CellProps>('list.column.string', 'pet', 'name');
   const SpeciesCell = useResolved<CellProps>('list.column.enum', 'pet', 'species');
   const StatusCell = useResolved<CellProps>('list.column.enum', 'pet', 'status');
@@ -41,9 +42,10 @@ export function PetListScreen(props: PetListScreenProps): ReactElement {
   const RecordVersionCell = useResolved<CellProps>('list.column.number', 'pet', 'record_version');
   const CreatedAtCell = useResolved<CellProps>('list.column.date-time', 'pet', 'created_at');
   const CreatedByCell = useResolved<CellProps>('list.column.string', 'pet', 'created_by');
-  const shown = shownFields(props.columns);
-  const cards = cardFields(props.columns);
-  if (props.status === 'loading') return <Loading {...stateProps(t('common.loading'))} />;
+  // Cell renderers by field, each resolved at (schema, field) so a column override reaches the table.
+  const cells = { name: NameCell, species: SpeciesCell, status: StatusCell, notes: NotesCell, entity_id: EntityIdCell, record_version: RecordVersionCell, created_at: CreatedAtCell, created_by: CreatedByCell };
+  // Column headers in the provider's locale; columns.ts carries the defaults.
+  const headers = { name: t('pet.field.name.label'), species: t('pet.field.species.label'), status: t('pet.field.status.label'), notes: t('pet.field.notes.label'), entity_id: t('pet.field.entity_id.label'), record_version: t('pet.field.record_version.label'), created_at: t('pet.field.created_at.label'), created_by: t('pet.field.created_by.label') };
   if (props.status === 'forbidden') return <Denied {...stateProps(t('common.notFound'), props.error)} />;
   if (props.status === 'error') {
     return <ErrorState {...stateProps(t('common.error'), props.error, retryAction(t('common.retry'), props.retry))} />;
@@ -51,221 +53,29 @@ export function PetListScreen(props: PetListScreenProps): ReactElement {
   const pet_create = props.actions.find((action) => action.operationId === 'pet_create');
   return (
     <section data-testid="pet-list-screen">
-      <header data-testid="pet-list-header">
-        <h1>{t('pet.screen.list.title')}</h1>
-        <div role="toolbar" aria-label={t('pet.screen.list.title')} data-testid="pet-list-actions">
+      <header data-testid="pet-list-header" style={layout.header}>
+        <h1 style={layout.heading}>{t('pet.screen.list.title')}</h1>
+        <div role="toolbar" aria-label={t('pet.screen.list.title')} data-testid="pet-list-actions" style={layout.toolbar}>
           {pet_create === undefined ? null : <PetCreateAction {...pet_create} />}
         </div>
       </header>
-      {props.rows.length === 0 ? (
-        <Empty {...stateProps(t('common.empty'))} />
-      ) : props.compact ? (
-        <ul aria-label={t('pet.screen.list.title')} data-testid="pet-list-table" data-layout="cards">
-          {props.rows.map((row) => {
-            const id = row.entity_id;
-            return (
-              <li key={id} data-testid={`pet-list-row-${id}`}>
-                <dl>
-                  {cards.has('name') ? (
-                    <div>
-                      <dt>{t('pet.field.name.label')}</dt>
-                      <dd>
-                        <NameCell value={row.name} row={row} column={PET_COLUMNS.name} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('species') ? (
-                    <div>
-                      <dt>{t('pet.field.species.label')}</dt>
-                      <dd>
-                        <SpeciesCell value={row.species} row={row} column={PET_COLUMNS.species} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('status') ? (
-                    <div>
-                      <dt>{t('pet.field.status.label')}</dt>
-                      <dd>
-                        <StatusCell value={row.status} row={row} column={PET_COLUMNS.status} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('notes') ? (
-                    <div>
-                      <dt>{t('pet.field.notes.label')}</dt>
-                      <dd>
-                        <NotesCell value={row.notes} row={row} column={PET_COLUMNS.notes} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('entity_id') ? (
-                    <div>
-                      <dt>{t('pet.field.entity_id.label')}</dt>
-                      <dd>
-                        <EntityIdCell value={row.entity_id} row={row} column={PET_COLUMNS.entity_id} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('record_version') ? (
-                    <div>
-                      <dt>{t('pet.field.record_version.label')}</dt>
-                      <dd>
-                        <RecordVersionCell value={row.record_version} row={row} column={PET_COLUMNS.record_version} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('created_at') ? (
-                    <div>
-                      <dt>{t('pet.field.created_at.label')}</dt>
-                      <dd>
-                        <CreatedAtCell value={row.created_at} row={row} column={PET_COLUMNS.created_at} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  {cards.has('created_by') ? (
-                    <div>
-                      <dt>{t('pet.field.created_by.label')}</dt>
-                      <dd>
-                        <CreatedByCell value={row.created_by} row={row} column={PET_COLUMNS.created_by} />
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <button type="button" data-testid={`pet-list-open-${id}`} onClick={() => { props.onOpen(id); }}>
-                  {t('common.open')}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <table data-testid="pet-list-table">
-          <thead>
-            <tr>
-              {shown.has('name') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-name" onClick={() => { props.onSort('name', nextDirection(props.sort, 'name')); }}>
-                    {t('pet.field.name.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('species') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-species" onClick={() => { props.onSort('species', nextDirection(props.sort, 'species')); }}>
-                    {t('pet.field.species.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('status') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-status" onClick={() => { props.onSort('status', nextDirection(props.sort, 'status')); }}>
-                    {t('pet.field.status.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('notes') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-notes" onClick={() => { props.onSort('notes', nextDirection(props.sort, 'notes')); }}>
-                    {t('pet.field.notes.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('entity_id') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-entity_id" onClick={() => { props.onSort('entity_id', nextDirection(props.sort, 'entity_id')); }}>
-                    {t('pet.field.entity_id.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('record_version') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-record_version" onClick={() => { props.onSort('record_version', nextDirection(props.sort, 'record_version')); }}>
-                    {t('pet.field.record_version.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('created_at') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-created_at" onClick={() => { props.onSort('created_at', nextDirection(props.sort, 'created_at')); }}>
-                    {t('pet.field.created_at.label')}
-                  </button>
-                </th>
-              ) : null}
-              {shown.has('created_by') ? (
-                <th scope="col">
-                  <button type="button" data-testid="pet-list-sort-created_by" onClick={() => { props.onSort('created_by', nextDirection(props.sort, 'created_by')); }}>
-                    {t('pet.field.created_by.label')}
-                  </button>
-                </th>
-              ) : null}
-              <th scope="col">{t('common.open')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.rows.map((row) => {
-              const id = row.entity_id;
-              return (
-                <tr key={id} data-testid={`pet-list-row-${id}`}>
-                  {shown.has('name') ? (
-                    <td>
-                      <NameCell value={row.name} row={row} column={PET_COLUMNS.name} />
-                    </td>
-                  ) : null}
-                  {shown.has('species') ? (
-                    <td>
-                      <SpeciesCell value={row.species} row={row} column={PET_COLUMNS.species} />
-                    </td>
-                  ) : null}
-                  {shown.has('status') ? (
-                    <td>
-                      <StatusCell value={row.status} row={row} column={PET_COLUMNS.status} />
-                    </td>
-                  ) : null}
-                  {shown.has('notes') ? (
-                    <td>
-                      <NotesCell value={row.notes} row={row} column={PET_COLUMNS.notes} />
-                    </td>
-                  ) : null}
-                  {shown.has('entity_id') ? (
-                    <td>
-                      <EntityIdCell value={row.entity_id} row={row} column={PET_COLUMNS.entity_id} />
-                    </td>
-                  ) : null}
-                  {shown.has('record_version') ? (
-                    <td>
-                      <RecordVersionCell value={row.record_version} row={row} column={PET_COLUMNS.record_version} />
-                    </td>
-                  ) : null}
-                  {shown.has('created_at') ? (
-                    <td>
-                      <CreatedAtCell value={row.created_at} row={row} column={PET_COLUMNS.created_at} />
-                    </td>
-                  ) : null}
-                  {shown.has('created_by') ? (
-                    <td>
-                      <CreatedByCell value={row.created_by} row={row} column={PET_COLUMNS.created_by} />
-                    </td>
-                  ) : null}
-                  <td>
-                    <button type="button" data-testid={`pet-list-open-${id}`} onClick={() => { props.onOpen(id); }}>
-                      {t('common.open')}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-      <nav aria-label={t('common.page')} data-testid="pet-list-pager">
-        <button type="button" data-testid="pet-list-page-previous" disabled={props.page.page <= 1} onClick={() => { props.onPage(props.page.page - 1); }}>
-          {t('common.previous')}
-        </button>
-        <span data-testid="pet-list-page-current">{props.page.page}</span>
-        <button type="button" data-testid="pet-list-page-next" disabled={props.page.page * props.page.pageSize >= props.page.total} onClick={() => { props.onPage(props.page.page + 1); }}>
-          {t('common.next')}
-        </button>
-      </nav>
+      <Table
+        rows={props.rows}
+        columns={localisedColumns(visibleColumns(props.columns), headers)}
+        cells={cells}
+        total={props.page.total}
+        page={props.page.page - 1}
+        pageSize={props.page.pageSize}
+        onPage={(page) => { props.onPage(page + 1); }}
+        onSort={props.onSort}
+        onFilter={props.onFilter}
+        onRowClick={(row) => { props.onOpen(row.entity_id); }}
+        loading={props.status === 'loading'}
+        getRowId={(row) => row.entity_id}
+        emptyLabel={t('common.empty')}
+        compact={props.compact}
+        testIdPrefix="pet-list"
+      />
     </section>
   );
 }

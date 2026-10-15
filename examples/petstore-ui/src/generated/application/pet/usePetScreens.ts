@@ -48,6 +48,9 @@ export function usePetListScreen(callbacks: PetListCallbacks): PetListScreenProp
   };
 }
 
+/** The schema `default` values the create form starts from (keys quoted: document data, not UI text). */
+export const PET_CREATE_DEFAULTS: Partial<PetCreate> = { 'status': 'available' };
+
 export interface PetCreateCallbacks {
   onCreated: (created: operations['pet_create']['response']) => void;
   onCancel: () => void;
@@ -56,22 +59,31 @@ export interface PetCreateCallbacks {
 }
 
 export function usePetCreateScreen(callbacks: PetCreateCallbacks): PetCreateScreenProps {
-  const [values, setValues] = useState<Partial<PetCreate>>({});
+  const t = useT();
+  const [values, setValues] = useState<Partial<PetCreate>>(() => ({ ...PET_CREATE_DEFAULTS }));
   const [errors, setErrors] = useState<Partial<Record<keyof PetCreate, string>>>({});
   const create = usePetCreate();
+  const labels: Readonly<Record<keyof PetCreate, string>> = {
+    name: t('pet.field.name.label'),
+    species: t('pet.field.species.label'),
+    status: t('pet.field.status.label'),
+    notes: t('pet.field.notes.label'),
+  };
   return {
     values,
     errors,
-    dirty: isDirty(values),
+    dirty: isDirty(values, PET_CREATE_DEFAULTS),
     pending: create.loading,
     submitError: messageOf(create.error),
     onChange: (field, value) => {
       setValues((previous) => ({ ...previous, [field]: value }));
+      // A corrected value drops its message at once; the next submit re-validates everything.
+      setErrors((previous) => ({ ...previous, [field]: undefined }));
     },
     onSubmit: () => {
       const parsed = PetCreateSchema.safeParse(values);
       if (!parsed.success) {
-        setErrors(fieldErrors(parsed.error.issues));
+        setErrors(fieldErrors(parsed.error.issues, t, labels));
         return;
       }
       setErrors({});
@@ -132,11 +144,17 @@ export function toPetUpdate(entity: Pet): Partial<PetUpdate> {
 }
 
 export function usePetEditScreen(id: PetId, callbacks: PetEditCallbacks): PetEditScreenProps {
+  const t = useT();
   const can = usePetCapabilities();
   const result = useEntity<Pet>('pet', id);
   const update = usePetUpdate();
   const [edits, setEdits] = useState<Partial<PetUpdate>>({});
   const [errors, setErrors] = useState<Partial<Record<keyof PetUpdate, string>>>({});
+  const labels: Readonly<Record<keyof PetUpdate, string>> = {
+    name: t('pet.field.name.label'),
+    status: t('pet.field.status.label'),
+    notes: t('pet.field.notes.label'),
+  };
   const entity = result.data;
   const values: Partial<PetUpdate> = { ...(entity === undefined ? {} : toPetUpdate(entity)), ...edits };
   return {
@@ -152,12 +170,13 @@ export function usePetEditScreen(id: PetId, callbacks: PetEditCallbacks): PetEdi
     submitError: messageOf(update.error),
     onChange: (field, value) => {
       setEdits((previous) => ({ ...previous, [field]: value }));
+      setErrors((previous) => ({ ...previous, [field]: undefined }));
     },
     onSubmit: () => {
       if (entity === undefined) return;
       const parsed = PetUpdateSchema.safeParse(values);
       if (!parsed.success) {
-        setErrors(fieldErrors(parsed.error.issues));
+        setErrors(fieldErrors(parsed.error.issues, t, labels));
         return;
       }
       setErrors({});

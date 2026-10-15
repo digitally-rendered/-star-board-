@@ -48,10 +48,10 @@ describe('petstore workflow', () => {
       initialEntries: ['/pet'],
     });
 
-    // List shows the seeded rows.
+    // List shows the seeded rows (the body renders them once the page has loaded).
     await screen.findByTestId('pet-list-table');
     for (const row of seeded)
-      expect(screen.getByTestId(`pet-list-row-${String(row.entity_id)}`)).toBeTruthy();
+      expect(await screen.findByTestId(`pet-list-row-${String(row.entity_id)}`)).toBeTruthy();
     await expectNoViolations(container);
 
     // Create: fill name and species through the field test ids, submit.
@@ -92,6 +92,9 @@ describe('petstore workflow', () => {
     await user.click(screen.getByTestId('action-pet_delete'));
     await user.click(await screen.findByTestId('action-pet_delete-confirm'));
     await screen.findByTestId('pet-list-table');
+    const remaining = seeded[0]?.entity_id;
+    if (typeof remaining !== 'string') throw new Error('no seeded row');
+    await screen.findByTestId(`pet-list-row-${remaining}`);
     expect(screen.queryByTestId(`pet-list-row-${id}`)).toBeNull();
     expect(store.get('pet', id)).toBeUndefined();
 

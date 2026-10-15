@@ -60,10 +60,18 @@ describe('selectors(schema)', () => {
     for (const [key, id] of Object.entries(table)) {
       // Renderer-owned ids (fields, actions) are rendered by the resolved components, not the screen text.
       if (id.startsWith('field-') || id.startsWith('action-')) continue;
+      // The table body derives its ids (table, sort, pager) from the prefix the screen hands it.
+      const derived = /^(.+)-(list|grid)-(table|pager|page-[a-z]+|sort-.+)$/.exec(id);
+      if (derived !== null) {
+        expect(screens, key).toContain(`testIdPrefix="${derived[1] ?? ''}-${derived[2] ?? ''}"`);
+        continue;
+      }
       expect(screens, key).toContain(`"${id}"`);
     }
     // And the generated screens carry no id the table does not know (bar the runtime-value ones).
-    const emitted = [...screens.matchAll(/data-testid="([^"]+)"/g)].map((m) => m[1] ?? '');
+    const emitted = [...screens.matchAll(/(?:data-testid|testId)="([^"]+)"/g)].map(
+      (m) => m[1] ?? '',
+    );
     const known = new Set(Object.values(table));
     for (const id of emitted) expect(known.has(id), id).toBe(true);
   });

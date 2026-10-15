@@ -1,9 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ComponentRegistry, type ComponentKey, type FeatureModel } from '@star-board/core';
 import {
+  DataGridList,
+  LIST_BODY_TARGET,
   registerDefaults,
   RENDERER_DEFAULT_MESSAGES,
   ThemeRoot,
+  type DataGridListProps,
   type ThemeRootProps,
 } from '@star-board/renderer-mui';
 import {
@@ -65,6 +68,28 @@ export interface Harness {
   Providers: ComponentType<{ children?: ReactNode }>;
 }
 
+/**
+ * jsdom has no layout, so the virtualised DataGrid renders no rows there. The harness registers
+ * the renderer's list body with its test seam at the same coordinates (`screen.list` /
+ * `screen.grid` at `table`, schema `'*'`) as an override, so the generated table screens show
+ * their rows under test while an app's own body override for a schema still wins.
+ */
+function UnvirtualisedDataGridList(props: DataGridListProps<Record<string, unknown>>) {
+  return <DataGridList {...props} disableVirtualization />;
+}
+
+export function registerHarnessSeams(registry: ComponentRegistry): void {
+  for (const key of ['screen.list', 'screen.grid'] as const) {
+    registry.register({
+      key,
+      schema: '*',
+      target: LIST_BODY_TARGET,
+      component: UnvirtualisedDataGridList,
+      source: 'override',
+    });
+  }
+}
+
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -92,6 +117,7 @@ export function createHarness(options: HarnessOptions): Harness {
   if (registry === undefined) {
     registry = new ComponentRegistry();
     registerDefaults(registry);
+    registerHarnessSeams(registry);
     options.register?.(registry);
   }
   const i18n = createI18n(

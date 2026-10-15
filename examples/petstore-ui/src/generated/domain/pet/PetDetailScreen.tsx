@@ -2,6 +2,9 @@
 import type { ReactElement } from 'react';
 import { useT } from '../../i18n.js';
 import {
+  EMPTY_VALUE,
+  hasValue,
+  layout,
   retryAction,
   stateProps,
   useResolved,
@@ -31,8 +34,9 @@ export function PetDetailScreen(props: PetDetailScreenProps): ReactElement {
   const Empty = useResolved<StateProps>('state.empty', 'pet', 'pet_get');
   // Posture 404 (hexagonal-rules shared/01 §5): what a missing capability shows.
   const Denied = useResolved<StateProps>('state.empty', 'pet', 'pet_get');
-  const PetDeleteAction = useResolved<ActionProps>('action.delete', 'pet', 'pet_delete');
   const PetUpdateAction = useResolved<ActionProps>('action.update', 'pet', 'pet_update');
+  const PetDeleteAction = useResolved<ActionProps>('action.delete', 'pet', 'pet_delete');
+  const Back = useResolved<ActionProps>('action.custom', 'pet', 'back');
   const NameCell = useResolved<CellProps>('list.column.string', 'pet', 'name');
   const SpeciesCell = useResolved<CellProps>('list.column.enum', 'pet', 'species');
   const StatusCell = useResolved<CellProps>('list.column.enum', 'pet', 'status');
@@ -49,83 +53,83 @@ export function PetDetailScreen(props: PetDetailScreenProps): ReactElement {
   }
   const entity = props.entity;
   if (entity === undefined) return <Empty {...stateProps(t('common.notFound'))} />;
-  const pet_delete = props.actions.find((action) => action.operationId === 'pet_delete');
   const pet_update = props.actions.find((action) => action.operationId === 'pet_update');
+  const pet_delete = props.actions.find((action) => action.operationId === 'pet_delete');
   return (
     <article data-testid="pet-detail-screen">
-      <header data-testid="pet-detail-header">
-        <h1>{t('pet.screen.detail.title')}</h1>
-        <div role="toolbar" aria-label={t('pet.screen.detail.title')} data-testid="pet-detail-actions">
-          {pet_delete === undefined ? null : <PetDeleteAction {...pet_delete} />}
+      <header data-testid="pet-detail-header" style={layout.header}>
+        <h1 style={layout.heading}>{t('pet.screen.detail.title')}</h1>
+        <div role="toolbar" aria-label={t('pet.screen.detail.title')} data-testid="pet-detail-actions" style={layout.toolbar}>
           {pet_update === undefined ? null : <PetUpdateAction {...pet_update} />}
+          {pet_delete === undefined ? null : <PetDeleteAction {...pet_delete} />}
         </div>
       </header>
-      <div data-testid="pet-detail-fields">
-        <dl>
+      <div data-testid="pet-detail-fields" style={layout.stack}>
+        <dl style={layout.definitions}>
           <div data-testid="pet-detail-field-name">
-            <dt>{t('pet.field.name.label')}</dt>
-            <dd>
-              <NameCell value={entity.name} row={entity} column={PET_COLUMNS.name} />
+            <dt style={layout.term}>{t('pet.field.name.label')}</dt>
+            <dd style={layout.definition}>
+              {hasValue(entity.name) ? <NameCell value={entity.name} row={entity} column={PET_COLUMNS.name} /> : EMPTY_VALUE}
             </dd>
           </div>
           <div data-testid="pet-detail-field-species">
-            <dt>{t('pet.field.species.label')}</dt>
-            <dd>
-              <SpeciesCell value={entity.species} row={entity} column={PET_COLUMNS.species} />
+            <dt style={layout.term}>{t('pet.field.species.label')}</dt>
+            <dd style={layout.definition}>
+              {hasValue(entity.species) ? <SpeciesCell value={entity.species} row={entity} column={PET_COLUMNS.species} /> : EMPTY_VALUE}
             </dd>
           </div>
           <div data-testid="pet-detail-field-status">
-            <dt>{t('pet.field.status.label')}</dt>
-            <dd>
-              <StatusCell value={entity.status} row={entity} column={PET_COLUMNS.status} />
+            <dt style={layout.term}>{t('pet.field.status.label')}</dt>
+            <dd style={layout.definition}>
+              {hasValue(entity.status) ? <StatusCell value={entity.status} row={entity} column={PET_COLUMNS.status} /> : EMPTY_VALUE}
             </dd>
           </div>
         </dl>
         <section data-testid="pet-detail-group-details">
-          <h2>{t('pet.group.details.label')}</h2>
-          <dl>
+          <h2 style={layout.subheading}>{t('pet.group.details.label')}</h2>
+          <dl style={layout.definitions}>
             <div data-testid="pet-detail-field-notes">
-              <dt>{t('pet.field.notes.label')}</dt>
-              <dd>
-                <NotesCell value={entity.notes} row={entity} column={PET_COLUMNS.notes} />
+              <dt style={layout.term}>{t('pet.field.notes.label')}</dt>
+              <dd style={layout.definition}>
+                {hasValue(entity.notes) ? <NotesCell value={entity.notes} row={entity} column={PET_COLUMNS.notes} /> : EMPTY_VALUE}
                 <NotesHelp text={t('pet.field.notes.help')} id="pet-detail-help-notes" />
               </dd>
             </div>
           </dl>
         </section>
         <section data-testid="pet-detail-group-system">
-          <h2>{t('common.system')}</h2>
-          <dl>
+          <h2 style={layout.subheading}>{t('common.system')}</h2>
+          <dl style={layout.definitions}>
             <div data-testid="pet-detail-field-entity_id">
-              <dt>{t('pet.field.entity_id.label')}</dt>
-              <dd>
-                <EntityIdCell value={entity.entity_id} row={entity} column={PET_COLUMNS.entity_id} />
+              <dt style={layout.term}>{t('pet.field.entity_id.label')}</dt>
+              <dd style={layout.definition}>
+                {hasValue(entity.entity_id) ? <EntityIdCell value={entity.entity_id} row={entity} column={PET_COLUMNS.entity_id} /> : EMPTY_VALUE}
               </dd>
             </div>
             <div data-testid="pet-detail-field-record_version">
-              <dt>{t('pet.field.record_version.label')}</dt>
-              <dd>
-                <RecordVersionCell value={entity.record_version} row={entity} column={PET_COLUMNS.record_version} />
+              <dt style={layout.term}>{t('pet.field.record_version.label')}</dt>
+              <dd style={layout.definition}>
+                {hasValue(entity.record_version) ? <RecordVersionCell value={entity.record_version} row={entity} column={PET_COLUMNS.record_version} /> : EMPTY_VALUE}
               </dd>
             </div>
             <div data-testid="pet-detail-field-created_at">
-              <dt>{t('pet.field.created_at.label')}</dt>
-              <dd>
-                <CreatedAtCell value={entity.created_at} row={entity} column={PET_COLUMNS.created_at} />
+              <dt style={layout.term}>{t('pet.field.created_at.label')}</dt>
+              <dd style={layout.definition}>
+                {hasValue(entity.created_at) ? <CreatedAtCell value={entity.created_at} row={entity} column={PET_COLUMNS.created_at} /> : EMPTY_VALUE}
               </dd>
             </div>
             <div data-testid="pet-detail-field-created_by">
-              <dt>{t('pet.field.created_by.label')}</dt>
-              <dd>
-                <CreatedByCell value={entity.created_by} row={entity} column={PET_COLUMNS.created_by} />
+              <dt style={layout.term}>{t('pet.field.created_by.label')}</dt>
+              <dd style={layout.definition}>
+                {hasValue(entity.created_by) ? <CreatedByCell value={entity.created_by} row={entity} column={PET_COLUMNS.created_by} /> : EMPTY_VALUE}
               </dd>
             </div>
           </dl>
         </section>
       </div>
-      <button type="button" data-testid="pet-detail-back" onClick={props.onBack}>
-        {t('common.back')}
-      </button>
+      <div style={layout.actions}>
+        <Back operationId="back" label={t('common.back')} variant="outlined" testId="pet-detail-back" onClick={props.onBack} />
+      </div>
     </article>
   );
 }

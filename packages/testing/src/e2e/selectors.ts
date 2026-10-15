@@ -6,7 +6,9 @@ import { plan } from '@star-board/generator';
  * with no Playwright dependency. Two emitters produce test ids:
  *
  * - the generator's screens: `<schema>-<kind>-<part>[-<extra>]`, where `<kind>` is the screen
- *   kind (`list`, `grid`, `detail`, `create`, `edit`) or the custom operation name;
+ *   kind (`list`, `grid`, `detail`, `create`, `edit`) or the custom operation name; a table's
+ *   `table`, `row`, `open`, `sort` and pager ids are derived by the renderer's list body from the
+ *   `testIdPrefix` (`<schema>-<kind>`) the screen hands it, under both layouts;
  * - the renderer's contract components (reached through the registry): `field-<name>`,
  *   `action-<operationId>` (+ `-dialog`, `-cancel`, `-confirm`), `cell-<field>`, `state-<kind>`
  *   (+ `-action`), the shell `screen`, `screen-actions`, `screen-body` and `data-grid-list`.

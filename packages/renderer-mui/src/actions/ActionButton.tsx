@@ -17,7 +17,9 @@ export function actionTestId(operationId: string): string {
 /**
  * `action.<kind>`: one operation as a button. `delete`, `destructive` and any `confirm` text go
  * through a dialog (never the browser's `confirm()`); `onClick` runs only after confirmation and
- * the button stays disabled while a returned promise is pending.
+ * the button stays disabled while a returned promise is pending. `variant` sets the emphasis
+ * (`create` is contained by default, the rest outlined) and `testId` replaces the default
+ * `action-<operationId>` for buttons that are not operations (cancel, back).
  */
 export function ActionButton(props: ActionProps & { kind: ActionKind }) {
   const t = useText();
@@ -28,7 +30,8 @@ export function ActionButton(props: ActionProps & { kind: ActionKind }) {
   const destructive = props.destructive ?? props.kind === 'delete';
   const needsConfirm = props.kind === 'delete' || destructive || props.confirm !== undefined;
   const confirmText = props.confirm ?? t('action.confirmDelete');
-  const testId = actionTestId(props.operationId);
+  const testId = props.testId ?? actionTestId(props.operationId);
+  const variant = props.variant ?? (props.kind === 'create' ? 'contained' : 'outlined');
 
   const run = async () => {
     setBusy(true);
@@ -44,7 +47,7 @@ export function ActionButton(props: ActionProps & { kind: ActionKind }) {
     <>
       <Button
         type="button"
-        variant={props.kind === 'create' ? 'contained' : 'outlined'}
+        variant={variant}
         color={destructive ? 'error' : 'primary'}
         disabled={(props.disabled ?? false) || busy}
         onClick={() => {

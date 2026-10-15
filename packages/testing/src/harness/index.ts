@@ -9,6 +9,7 @@ export {
   createHarness,
   createQueryClient,
   HARNESS_BASE_URL,
+  registerHarnessSeams,
   renderGeneratedScreen,
   renderRoutes,
   renderWithProviders,

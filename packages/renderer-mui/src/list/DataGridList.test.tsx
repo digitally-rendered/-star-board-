@@ -240,7 +240,7 @@ describe('DataGridList', () => {
   });
 
   it('maps column descriptors to DataGrid column definitions', () => {
-    const defs = columns.map((c) => toColDef(c, {}));
+    const defs = columns.map((c) => toColDef(c, StringCell));
     expect(defs.map((d) => d.type)).toEqual([
       'string',
       'number',
@@ -254,7 +254,47 @@ describe('DataGridList', () => {
     expect(defs[5]?.sortable).toBe(false);
     expect(defs[5]?.filterable).toBe(false);
     const Custom = () => <i>custom</i>;
-    expect(toColDef(nameColumn, { string: Custom }).renderCell).toBeDefined();
+    expect(toColDef(nameColumn, Custom).renderCell).toBeDefined();
+    expect(toColDef(nameColumn, Custom).renderHeader).toBeUndefined();
+    expect(toColDef(nameColumn, Custom, 'pet-list').renderHeader).toBeDefined();
+  });
+
+  it(
+    'carries the page-object ids of a prefix and an Open column that calls onRowClick',
+    { timeout: 30_000 },
+    async () => {
+      const Custom = () => <i data-testid="custom-name">custom</i>;
+      const { onRowClick, onSort } = renderGrid({
+        testIdPrefix: 'pet-list',
+        cells: { name: Custom },
+      });
+      expect(screen.getByTestId('pet-list-table')).toBeTruthy();
+      expect(screen.getByTestId('pet-list-pager')).toBeTruthy();
+      expect(screen.getByTestId('pet-list-page-current').textContent).toBe('1–10 of 25');
+      expect(screen.getByTestId('pet-list-page-previous')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('pet-list-row-1')).toBeTruthy();
+      });
+      // The per-field cell wins over the type default for that field only.
+      expect(screen.getAllByTestId('custom-name')).toHaveLength(2);
+      expect(screen.getByText('Dog')).toBeTruthy();
+      await userEvent.click(screen.getByTestId('pet-list-open-2'));
+      expect(onRowClick).toHaveBeenCalledWith(rows[1]);
+      await userEvent.click(screen.getByTestId('pet-list-sort-age'));
+      expect(onSort).toHaveBeenLastCalledWith('age', 'asc');
+      expect(screen.queryByTestId('pet-list-sort-owner')).toBeNull();
+      await userEvent.click(screen.getByTestId('pet-list-page-next'));
+    },
+  );
+
+  it('compact: the prefix ids replace the data-grid ones', () => {
+    renderGrid({ compact: true, testIdPrefix: 'pet-list' });
+    expect(screen.getByTestId('pet-list-table').tagName).toBe('UL');
+    expect(screen.getByTestId('pet-list-table').getAttribute('data-layout')).toBe('cards');
+    expect(screen.getAllByTestId(/^pet-list-row-/)).toHaveLength(rows.length);
+    expect(screen.getByTestId('pet-list-open-1')).toBeTruthy();
+    expect(screen.getByTestId('pet-list-page-next')).toBeTruthy();
+    expect(screen.queryByTestId('data-grid-card-1')).toBeNull();
   });
 });
 

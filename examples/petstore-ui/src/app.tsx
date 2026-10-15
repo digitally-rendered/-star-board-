@@ -69,10 +69,10 @@ export function createServices(options: ServicesOptions): Services {
   };
 }
 
-/** The renderer defaults, the generated screens, then the overrides of `src/features`. */
-export function createAppRegistry(): ComponentRegistry {
+/** The renderer defaults, the generated screens, then (unless switched off) the overrides of `src/features`. */
+export function createAppRegistry(overrides = true): ComponentRegistry {
   const registry = createGeneratedRegistry();
-  registerPetOverrides(registry);
+  if (overrides) registerPetOverrides(registry);
   return registry;
 }
 
@@ -150,6 +150,8 @@ export interface AppProps {
   locale?: string;
   /** Translations by key over the generated, renderer and runtime defaults. */
   messages?: Record<string, string>;
+  /** Register `src/features` (default); false shows the generated defaults alone, for review. */
+  overrides?: boolean;
 }
 
 export function App(props: AppProps): ReactElement {
@@ -160,7 +162,7 @@ export function App(props: AppProps): ReactElement {
   return (
     <AppProviders
       services={services}
-      registry={createAppRegistry()}
+      registry={createAppRegistry(props.overrides ?? true)}
       i18n={createAppI18n(props.messages, props.locale)}
       theme={createAppTheme()}
       queryClient={createQueryClient()}

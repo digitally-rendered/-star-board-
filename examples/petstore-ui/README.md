@@ -54,3 +54,10 @@ a dirty create form and lets a clean one go; `src/session.test.tsx` has msw answ
 `onUnauthorized` fires once; `src/pwa.test.ts` checks the manifest, icons and viewport.
 `e2e/petstore.spec.ts` is the same workflow in a browser with `@axe-core/playwright`; it is not
 part of `pnpm test`.
+
+## Review switches
+
+The dev server honours a few query parameters so every generated state can be looked at
+(`e2e/usability.spec.ts` captures them under `test-results/usability/`): `?overrides=0` skips
+`registerPetOverrides` so the generated defaults show, `?rows=0` seeds no rows (the empty states),
+`?delay=1500` holds every mock answer (the loading states) and `?lang=fr` switches the locale.

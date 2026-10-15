@@ -16,6 +16,7 @@ import {
 } from './fields/index.js';
 import { InlineHelp } from './help/InlineHelp.js';
 import { CELLS } from './list/columns.js';
+import { DataGridList, LIST_BODY_TARGET } from './list/DataGridList.js';
 import {
   CreateScreen,
   CustomScreen,
@@ -66,11 +67,12 @@ export const DEFAULT_COMPONENTS: ReadonlyMap<ComponentKey, AnyComponent> = new M
 
 /**
  * Registers every default as the universal match (`schema '*'`, `target '*'`, no scope,
- * `source 'generated'`), so any override at any specificity wins (shared/01 §6a). Two more
- * registrations under `screen.custom` are target-exact, so they never shadow the universal
- * `screen.custom`: target `agent-panel` is the agent affordance the generated `AgentPanelSlot`
- * resolves, and target `unsaved-changes` the dialog the generated `UnsavedChangesSlot` resolves
- * (typescript/05 §9) — shared primitives reached through the registry, not a new contract key.
+ * `source 'generated'`), so any override at any specificity wins (shared/01 §6a). Four more
+ * registrations are target-exact, so they never shadow a universal match: `screen.custom` at
+ * `agent-panel` is the agent affordance the generated `AgentPanelSlot` resolves, `screen.custom`
+ * at `unsaved-changes` the dialog the generated route containers resolve (typescript/05 §9), and
+ * `screen.list` / `screen.grid` at `table` the DataGrid body the generated table screens resolve —
+ * shared primitives reached through the registry, not new contract keys.
  */
 export function registerDefaults(registry: ComponentRegistry): void {
   for (const [key, component] of DEFAULT_COMPONENTS) {
@@ -90,7 +92,16 @@ export function registerDefaults(registry: ComponentRegistry): void {
     component: UnsavedChangesDialog,
     source: 'generated',
   });
+  for (const key of ['screen.list', 'screen.grid'] as const) {
+    registry.register({
+      key,
+      schema: '*',
+      target: LIST_BODY_TARGET,
+      component: DataGridList,
+      source: 'generated',
+    });
+  }
 }
 
 /** Registrations beyond the one-per-key defaults; the parity test accounts for them. */
-export const EXTRA_REGISTRATIONS = 2;
+export const EXTRA_REGISTRATIONS = 4;

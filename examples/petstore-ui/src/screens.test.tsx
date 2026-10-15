@@ -263,7 +263,6 @@ describe('generated screens mount with fixture data', () => {
   it('every screen renders its loading, forbidden (posture 404 → empty) and error states', async () => {
     const base = { ...table, rows: pets, columns: PET_LIST_COLUMNS, actions: [] };
     for (const [status, testId] of [
-      ['loading', 'state-loading'],
       ['forbidden', 'state-empty'],
       ['error', 'state-error'],
     ] as const) {
@@ -277,5 +276,17 @@ describe('generated screens mount with fixture data', () => {
       await expectNoViolations(container);
       unmount();
     }
+    // Loading keeps the header and the table body, which shows its skeleton rows.
+    const loading: PetListScreenProps = { ...base, rows: [], status: 'loading', error: undefined };
+    renderGeneratedScreen({
+      ...harnessOptions(),
+      screen: { key: 'screen.list', schema: 'pet', target: 'pet_list' },
+      props: loading,
+    });
+    expect(screen.getByTestId('pet-list-header')).toBeTruthy();
+    expect(
+      screen.getByTestId('pet-list-table').querySelector('.MuiDataGrid-skeletonLoadingOverlay'),
+    ).not.toBeNull();
+    expect(screen.queryByTestId('state-loading')).toBeNull();
   });
 });

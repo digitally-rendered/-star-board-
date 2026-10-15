@@ -1,5 +1,11 @@
 import { pascalCase, quote } from '../plan/names.js';
-import type { ActionPlan, GenerationPlan, SchemaPlan, ScreenPlan } from '../plan/plan.js';
+import type {
+  ActionPlan,
+  FormFieldPlan,
+  GenerationPlan,
+  SchemaPlan,
+  ScreenPlan,
+} from '../plan/plan.js';
 import { listColumnsConstName, viewConstName } from './screens.js';
 import { header, indent, lines, type GeneratedFile, type Source } from './support.js';
 import { viewRowType } from './types.js';
@@ -20,6 +26,7 @@ export function emitApplicationSupport(source: Source): GeneratedFile {
       "import { useCallback, useMemo, useState } from 'react';",
       "import { etagOf, isHttpError, type ListQuery, type Versioned, type ViewQuery } from '@star-board/runtime';",
       "import type { ScreenStatus, SortDirection, SortState } from '../domain/contract.js';",
+      "import type { T } from '../i18n.js';",
       '',
       '/** The shape the shared data hooks report; only these members are read. */',
       'export interface QueryLike {',
@@ -49,21 +56,70 @@ export function emitApplicationSupport(source: Source): GeneratedFile {
       "  return typeof error === 'string' ? error : JSON.stringify(error);",
       '}',
       '',
-      '/** zod issues → first message per top-level field. */',
+      '/** The members of a zod 4 issue the message mapper reads; structural, so any issue shape fits. */',
+      'export interface IssueLike {',
+      '  code: string;',
+      '  path: readonly PropertyKey[];',
+      '  message: string;',
+      '  input?: unknown;',
+      '  expected?: unknown;',
+      '  values?: readonly unknown[];',
+      '  minimum?: unknown;',
+      '  maximum?: unknown;',
+      '  origin?: unknown;',
+      '  format?: unknown;',
+      '}',
+      '',
+      '/**',
+      ' * A zod issue as a sentence for the person filling the form (typescript/05 §7: a key per case,',
+      " * never zod's own text). A missing required value reads as required whatever the expected type;",
+      ' * everything the table does not name falls back to `validation.invalid`.',
+      ' */',
+      'export function messageForIssue(issue: IssueLike, t: T, label: string): string {',
+      '  const missing = issue.input === undefined || issue.input === null;',
+      '  switch (issue.code) {',
+      "    case 'invalid_type':",
+      "      return missing ? t('validation.required', { label }) : t('validation.invalid');",
+      "    case 'invalid_value':",
+      "      return missing ? t('validation.required', { label }) : t('validation.invalidOption');",
+      "    case 'too_big':",
+      "      return issue.origin === 'string'",
+      "        ? t('validation.maxLength', { max: String(issue.maximum) })",
+      "        : t('validation.max', { max: String(issue.maximum) });",
+      "    case 'too_small':",
+      "      return issue.origin === 'string'",
+      "        ? t('validation.minLength', { min: String(issue.minimum) })",
+      "        : t('validation.min', { min: String(issue.minimum) });",
+      "    case 'invalid_format':",
+      "      return t('validation.invalidFormat', { format: String(issue.format) });",
+      '    default:',
+      "      return t('validation.invalid');",
+      '  }',
+      '}',
+      '',
+      '/** zod issues → first message per top-level field, worded through `messageForIssue` with the field labels. */',
       'export function fieldErrors(',
-      '  issues: readonly { path: readonly PropertyKey[]; message: string }[],',
+      '  issues: readonly IssueLike[],',
+      '  t: T,',
+      '  labels: Readonly<Record<string, string>>,',
       '): Record<string, string> {',
       '  const errors: Record<string, string> = {};',
       '  for (const issue of issues) {',
       "    const key = issue.path.length > 0 ? String(issue.path[0]) : '';",
-      '    errors[key] ??= issue.message;',
+      '    errors[key] ??= messageForIssue(issue, t, labels[key] ?? key);',
       '  }',
       '  return errors;',
       '}',
       '',
-      '/** A form is dirty once any value was set (typescript/05 §9: unsaved changes hold navigation). */',
-      'export function isDirty(values: Readonly<Record<string, unknown>>): boolean {',
-      '  return Object.values(values).some((value) => value !== undefined);',
+      '/**',
+      ' * A form is dirty once a value differs from what it started with (typescript/05 §9: unsaved',
+      ' * changes hold navigation); `initial` is the create defaults, or nothing for the edit deltas.',
+      ' */',
+      'export function isDirty(',
+      '  values: Readonly<Record<string, unknown>>,',
+      '  initial: Readonly<Record<string, unknown>> = {},',
+      '): boolean {',
+      '  return Object.entries(values).some(([field, value]) => value !== initial[field]);',
       '}',
       '',
       '/** The per-field messages of a 422 response (RFC 7807 `errors` or the envelope `details`). */',
@@ -340,6 +396,24 @@ export function emitScreenHooks(
   };
 }
 
+/** A schema `default` as a TypeScript literal: strings single-quoted like the rest of the output, the rest as JSON. */
+function defaultLiteral(value: unknown): string {
+  return typeof value === 'string' ? quote(value) : JSON.stringify(value);
+}
+
+/** The field labels a form's validation messages name, from the provider's `t`. */
+function labelsTable(
+  schema: SchemaPlan,
+  payload: string,
+  fields: readonly FormFieldPlan[],
+): string[] {
+  return [
+    `  const labels: Readonly<Record<keyof ${payload}, string>> = {`,
+    ...fields.map((f) => `    ${f.name}: t(${quote(`${schema.name}.field.${f.name}.label`)}),`),
+    '  };',
+  ];
+}
+
 function detailActions(schema: SchemaPlan): ActionPlan[] {
   return schema.actions.filter(
     (a) =>
@@ -502,7 +576,12 @@ function screenHookBody(plan: GenerationPlan, schema: SchemaPlan, screen: Screen
     case 'create': {
       const action = schema.actions.find((a) => a.id === screen.operationId);
       if (!action) return '';
+      const defaults = schema.createFields.filter((f) => f.schema.default !== undefined);
+      const defaultsName = `${name.toUpperCase()}_CREATE_DEFAULTS`;
       return lines([
+        `/** The schema \`default\` values the create form starts from (keys quoted: document data, not UI text). */`,
+        `export const ${defaultsName}: Partial<${pascal}Create> = {${defaults.length === 0 ? '' : ` ${defaults.map((f) => `${quote(f.name)}: ${defaultLiteral(f.schema.default)}`).join(', ')} `}};`,
+        '',
         `export interface ${pascal}CreateCallbacks {`,
         `  onCreated: (created: ${responseType(schema, action)}) => void;`,
         '  onCancel: () => void;',
@@ -511,22 +590,25 @@ function screenHookBody(plan: GenerationPlan, schema: SchemaPlan, screen: Screen
         '}',
         '',
         `export function use${pascal}CreateScreen(callbacks: ${pascal}CreateCallbacks): ${props} {`,
-        `  const [values, setValues] = useState<Partial<${pascal}Create>>({});`,
+        `  const [values, setValues] = useState<Partial<${pascal}Create>>(() => ({ ...${defaultsName} }));`,
         `  const [errors, setErrors] = useState<Partial<Record<keyof ${pascal}Create, string>>>({});`,
         `  const create = ${hookName(schema, action)}();`,
+        ...labelsTable(schema, `${pascal}Create`, schema.createFields),
         '  return {',
         '    values,',
         '    errors,',
-        '    dirty: isDirty(values),',
+        `    dirty: isDirty(values, ${defaultsName}),`,
         '    pending: create.loading,',
         '    submitError: messageOf(create.error),',
         '    onChange: (field, value) => {',
         '      setValues((previous) => ({ ...previous, [field]: value }));',
+        '      // A corrected value drops its message at once; the next submit re-validates everything.',
+        '      setErrors((previous) => ({ ...previous, [field]: undefined }));',
         '    },',
         '    onSubmit: () => {',
         `      const parsed = ${pascal}CreateSchema.safeParse(values);`,
         '      if (!parsed.success) {',
-        '        setErrors(fieldErrors(parsed.error.issues));',
+        '        setErrors(fieldErrors(parsed.error.issues, t, labels));',
         '        return;',
         '      }',
         '      setErrors({});',
@@ -563,6 +645,7 @@ function screenHookBody(plan: GenerationPlan, schema: SchemaPlan, screen: Screen
         `  const update = ${hookName(schema, action)}();`,
         `  const [edits, setEdits] = useState<Partial<${pascal}Update>>({});`,
         `  const [errors, setErrors] = useState<Partial<Record<keyof ${pascal}Update, string>>>({});`,
+        ...labelsTable(schema, `${pascal}Update`, schema.updateFields),
         '  const entity = result.data;',
         `  const values: Partial<${pascal}Update> = { ...(entity === undefined ? {} : to${pascal}Update(entity)), ...edits };`,
         '  return {',
@@ -578,12 +661,13 @@ function screenHookBody(plan: GenerationPlan, schema: SchemaPlan, screen: Screen
         '    submitError: messageOf(update.error),',
         '    onChange: (field, value) => {',
         '      setEdits((previous) => ({ ...previous, [field]: value }));',
+        '      setErrors((previous) => ({ ...previous, [field]: undefined }));',
         '    },',
         '    onSubmit: () => {',
         '      if (entity === undefined) return;',
         `      const parsed = ${pascal}UpdateSchema.safeParse(values);`,
         '      if (!parsed.success) {',
-        '        setErrors(fieldErrors(parsed.error.issues));',
+        '        setErrors(fieldErrors(parsed.error.issues, t, labels));',
         '        return;',
         '      }',
         '      setErrors({});',

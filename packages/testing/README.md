@@ -115,8 +115,10 @@ await expectNoViolations(container);
 ```
 
 `createHarness(options)` builds what the app's composition root builds: a QueryClient, a registry
-with the renderer defaults then whatever `register` adds (the generated `registerGenerated`, the
-overrides), Services over `createClient(baseUrl)` (default `http://star-board.test/api`, which the
+with the renderer defaults, the harness seams (`registerHarnessSeams`: the renderer's table body
+re-registered at `screen.list` / `screen.grid` target `table` with virtualisation off, since jsdom
+has no layout and the virtualised DataGrid would render no rows) then whatever `register` adds
+(the generated `registerGenerated`, the overrides), Services over `createClient(baseUrl)` (default `http://star-board.test/api`, which the
 msw server answers) with a principal holding every capability of the document unless `principal`
 is given, and the i18n table (runtime + renderer defaults + `messages`, the generated
 `i18n.defaults.json`). An optional `theme` (`createTheme` + `buildCssVariables`) mounts `ThemeRoot`.

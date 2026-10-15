@@ -4,6 +4,7 @@ import { useT } from '../../i18n.js';
 import { AgentPanelSlot } from '../AgentPanelSlot.js';
 import {
   fieldText,
+  layout,
   retryAction,
   stateProps,
   useResolved,
@@ -44,6 +45,7 @@ export function PetEditScreen(props: PetEditScreenProps): ReactElement {
   // Posture 404 (hexagonal-rules shared/01 §5): what a missing capability shows.
   const Denied = useResolved<StateProps>('state.empty', 'pet', 'pet_update');
   const Submit = useResolved<ActionProps>('action.update', 'pet', 'pet_update');
+  const Cancel = useResolved<ActionProps>('action.custom', 'pet', 'cancel');
   // Regulated wording (typescript/05 §4): the reviewed disclaimer of this screen, empty unless a translation sets it.
   const Disclaimer = useResolved<HelpProps>('help.inline', 'pet', 'pet_update');
   const disclaimer = t('pet.screen.edit.disclaimer');
@@ -58,43 +60,45 @@ export function PetEditScreen(props: PetEditScreenProps): ReactElement {
   if (props.entity === undefined) return <Empty {...stateProps(t('common.notFound'))} />;
   return (
     <form data-testid="pet-edit-screen" noValidate onSubmit={(event) => { event.preventDefault(); props.onSubmit(); }}>
-      <h1>{t('pet.screen.edit.title')}</h1>
+      <header style={layout.header}>
+        <h1 style={layout.heading}>{t('pet.screen.edit.title')}</h1>
+      </header>
       {disclaimer === '' ? null : <Disclaimer id="pet-edit-disclaimer" text={disclaimer} />}
-      <NameField
-        name="name"
-        label={t('pet.field.name.label')}
-        required={false}
-        value={props.values.name ?? ''}
-        onChange={(value) => { props.onChange('name', value === '' ? undefined : value); }}
-        {...fieldText(undefined, props.errors.name)}
-      />
-      <StatusField
-        name="status"
-        label={t('pet.field.status.label')}
-        required={false}
-        value={props.values.status ?? ''}
-        onChange={(value) => { props.onChange('status', value === '' ? undefined : value); }}
-        options={[...PET_STATUS_OPTIONS]}
-        {...fieldText(undefined, props.errors.status)}
-      />
-      <fieldset data-testid="pet-edit-group-details">
-        <legend>{t('pet.group.details.label')}</legend>
-        <NotesField
-          name="notes"
-          label={t('pet.field.notes.label')}
+      <div style={layout.stack}>
+        <NameField
+          name="name"
+          label={t('pet.field.name.label')}
           required={false}
-          value={props.values.notes ?? ''}
-          onChange={(value) => { props.onChange('notes', value === '' ? undefined : value); }}
-          {...fieldText(t('pet.field.notes.help'), props.errors.notes)}
+          value={props.values.name ?? ''}
+          onChange={(value) => { props.onChange('name', value === '' ? undefined : value); }}
+          {...fieldText(undefined, props.errors.name)}
         />
-      </fieldset>
+        <StatusField
+          name="status"
+          label={t('pet.field.status.label')}
+          required={false}
+          value={props.values.status ?? ''}
+          onChange={(value) => { props.onChange('status', value === '' ? undefined : value); }}
+          options={[...PET_STATUS_OPTIONS]}
+          {...fieldText(undefined, props.errors.status)}
+        />
+        <fieldset data-testid="pet-edit-group-details" style={layout.group}>
+          <legend style={layout.legend}>{t('pet.group.details.label')}</legend>
+          <NotesField
+            name="notes"
+            label={t('pet.field.notes.label')}
+            required={false}
+            value={props.values.notes ?? ''}
+            onChange={(value) => { props.onChange('notes', value === '' ? undefined : value); }}
+            {...fieldText(t('pet.field.notes.help'), props.errors.notes)}
+          />
+        </fieldset>
+      </div>
       {props.submitError === undefined ? null : <ErrorState {...stateProps(t('common.error'), props.submitError)} />}
       <AgentPanelSlot schema="pet" operationId="pet_update" args={props.values} ifMatch={props.ifMatch} onApplied={props.onAgentApplied} disabled={props.pending} />
-      <div role="toolbar" aria-label={t('pet.screen.edit.title')} data-testid="pet-edit-actions">
-        <Submit operationId="pet_update" label={t('pet.action.pet_update.label')} disabled={props.pending} onClick={props.onSubmit} />
-        <button type="button" data-testid="pet-edit-cancel" onClick={props.onCancel}>
-          {t('common.cancel')}
-        </button>
+      <div role="toolbar" aria-label={t('pet.screen.edit.title')} data-testid="pet-edit-actions" style={layout.actions}>
+        <Submit operationId="pet_update" label={t('pet.action.pet_update.label')} variant="contained" disabled={props.pending} onClick={props.onSubmit} />
+        <Cancel operationId="cancel" label={t('common.cancel')} variant="outlined" testId="pet-edit-cancel" onClick={props.onCancel} />
       </div>
     </form>
   );

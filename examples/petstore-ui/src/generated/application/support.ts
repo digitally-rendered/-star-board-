@@ -2,6 +2,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { etagOf, isHttpError, type ListQuery, type Versioned, type ViewQuery } from '@star-board/runtime';
 import type { ScreenStatus, SortDirection, SortState } from '../domain/contract.js';
+import type { T } from '../i18n.js';
 
 /** The shape the shared data hooks report; only these members are read. */
 export interface QueryLike {
@@ -31,21 +32,70 @@ export function messageOf(error: unknown): string | undefined {
   return typeof error === 'string' ? error : JSON.stringify(error);
 }
 
-/** zod issues → first message per top-level field. */
+/** The members of a zod 4 issue the message mapper reads; structural, so any issue shape fits. */
+export interface IssueLike {
+  code: string;
+  path: readonly PropertyKey[];
+  message: string;
+  input?: unknown;
+  expected?: unknown;
+  values?: readonly unknown[];
+  minimum?: unknown;
+  maximum?: unknown;
+  origin?: unknown;
+  format?: unknown;
+}
+
+/**
+ * A zod issue as a sentence for the person filling the form (typescript/05 §7: a key per case,
+ * never zod's own text). A missing required value reads as required whatever the expected type;
+ * everything the table does not name falls back to `validation.invalid`.
+ */
+export function messageForIssue(issue: IssueLike, t: T, label: string): string {
+  const missing = issue.input === undefined || issue.input === null;
+  switch (issue.code) {
+    case 'invalid_type':
+      return missing ? t('validation.required', { label }) : t('validation.invalid');
+    case 'invalid_value':
+      return missing ? t('validation.required', { label }) : t('validation.invalidOption');
+    case 'too_big':
+      return issue.origin === 'string'
+        ? t('validation.maxLength', { max: String(issue.maximum) })
+        : t('validation.max', { max: String(issue.maximum) });
+    case 'too_small':
+      return issue.origin === 'string'
+        ? t('validation.minLength', { min: String(issue.minimum) })
+        : t('validation.min', { min: String(issue.minimum) });
+    case 'invalid_format':
+      return t('validation.invalidFormat', { format: String(issue.format) });
+    default:
+      return t('validation.invalid');
+  }
+}
+
+/** zod issues → first message per top-level field, worded through `messageForIssue` with the field labels. */
 export function fieldErrors(
-  issues: readonly { path: readonly PropertyKey[]; message: string }[],
+  issues: readonly IssueLike[],
+  t: T,
+  labels: Readonly<Record<string, string>>,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const issue of issues) {
     const key = issue.path.length > 0 ? String(issue.path[0]) : '';
-    errors[key] ??= issue.message;
+    errors[key] ??= messageForIssue(issue, t, labels[key] ?? key);
   }
   return errors;
 }
 
-/** A form is dirty once any value was set (typescript/05 §9: unsaved changes hold navigation). */
-export function isDirty(values: Readonly<Record<string, unknown>>): boolean {
-  return Object.values(values).some((value) => value !== undefined);
+/**
+ * A form is dirty once a value differs from what it started with (typescript/05 §9: unsaved
+ * changes hold navigation); `initial` is the create defaults, or nothing for the edit deltas.
+ */
+export function isDirty(
+  values: Readonly<Record<string, unknown>>,
+  initial: Readonly<Record<string, unknown>> = {},
+): boolean {
+  return Object.entries(values).some(([field, value]) => value !== initial[field]);
 }
 
 /** The per-field messages of a 422 response (RFC 7807 `errors` or the envelope `details`). */

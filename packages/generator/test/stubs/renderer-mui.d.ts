@@ -5,6 +5,8 @@
  * Keep in step with the renderer.
  */
 import type { ComponentRegistry } from '@star-board/core';
+// eslint-disable-next-line no-restricted-imports -- a stub of a consumer module; the generator itself never imports React
+import type { ComponentType } from 'react';
 
 export declare function registerDefaults(registry: ComponentRegistry): void;
 
@@ -60,6 +62,25 @@ export interface CellProps {
   row: unknown;
   column: ColumnDescriptor;
 }
+export type SortDirection = 'asc' | 'desc';
+export interface ListProps<Row = Record<string, unknown>> {
+  rows: readonly Row[];
+  columns: readonly ColumnDescriptor[];
+  cells?: Readonly<Record<string, ComponentType<CellProps>>>;
+  total: number;
+  page: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+  onSort: (field: string, dir: SortDirection) => void;
+  onFilter: (field: string, value: string) => void;
+  onRowClick?: (row: Row) => void;
+  loading?: boolean;
+  getRowId: (row: Row) => string;
+  emptyLabel: string;
+  compact?: boolean;
+  testIdPrefix?: string;
+}
+export type ActionVariant = 'contained' | 'outlined' | 'text';
 export interface ActionProps {
   operationId: string;
   label: string;
@@ -67,6 +88,8 @@ export interface ActionProps {
   destructive?: boolean;
   onClick: () => void | Promise<void>;
   confirm?: string;
+  variant?: ActionVariant;
+  testId?: string;
 }
 export interface StateProps {
   title: string;

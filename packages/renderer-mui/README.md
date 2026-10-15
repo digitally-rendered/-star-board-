@@ -41,15 +41,15 @@ trailing `:root` block, so they win over the tokens in every mode.
 The generator emits screens against these prop shapes and resolves the implementation through
 `useComponent(key, schema, target)`; an override for a key accepts the same props.
 
-| Keys                                                                      | Props                                                                                                                                                                            |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `field.text\|select\|datetime\|number\|boolean\|tags\|subform\|reference` | `FieldProps<V>` — `name, label, help?, required?, disabled?, value, onChange, error?` plus `options` (select), `min/max/step` (number), `fields` (subform), `search` (reference) |
-| `list.column.<type>` (`string number boolean date-time enum reference`)   | `CellProps { value, row, column }`                                                                                                                                               |
-| `DataGridList` (the default `screen.list` / `screen.grid` body)           | `ListProps<Row>` — server-side `onPage`, `onSort`, `onFilter`; `emptyLabel` renders `state.empty`; `compact?` (default: under the `sm` breakpoint) renders a card list           |
-| `action.create\|update\|delete\|custom`                                   | `ActionProps { operationId, label, disabled?, destructive?, onClick, confirm? }`                                                                                                 |
-| `state.empty\|loading\|error\|forbidden`                                  | `StateProps { title, description?, action? }`                                                                                                                                    |
-| `help.inline`                                                             | `HelpProps { text, id }`                                                                                                                                                         |
-| `screen.list\|grid\|detail\|create\|edit\|custom`                         | `ScreenShellProps { title, breadcrumbs?, actions?, children, embedded? }`                                                                                                        |
+| Keys                                                                      | Props                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `field.text\|select\|datetime\|number\|boolean\|tags\|subform\|reference` | `FieldProps<V>` — `name, label, help?, required?, disabled?, value, onChange, error?` plus `options` (select), `min/max/step` (number), `fields` (subform), `search` (reference)                                                                                                                                             |
+| `list.column.<type>` (`string number boolean date-time enum reference`)   | `CellProps { value, row, column }`                                                                                                                                                                                                                                                                                           |
+| `screen.list\|grid` at target `table` (`DataGridList`)                    | `ListProps<Row>` — server-side `onPage`, `onSort`, `onFilter`; `cells` by field (registry-resolved renderers); `emptyLabel` renders `state.empty`; `loading` the skeleton; `onRowClick` adds an Open column; `compact?` (default: under the `sm` breakpoint) renders a card list; `testIdPrefix` carries the page-object ids |
+| `action.create\|update\|delete\|custom`                                   | `ActionProps { operationId, label, disabled?, destructive?, onClick, confirm?, variant?, testId? }` — `variant` is the emphasis (`create` contained, else outlined), `testId` replaces `action-<operationId>` for cancel and back buttons                                                                                    |
+| `state.empty\|loading\|error\|forbidden`                                  | `StateProps { title, description?, action? }`                                                                                                                                                                                                                                                                                |
+| `help.inline`                                                             | `HelpProps { text, id }`                                                                                                                                                                                                                                                                                                     |
+| `screen.list\|grid\|detail\|create\|edit\|custom`                         | `ScreenShellProps { title, breadcrumbs?, actions?, children, embedded? }`                                                                                                                                                                                                                                                    |
 
 Value types per field: `text`/`datetime` (ISO 8601, `''` empty)/`select` → `string`; `number` →
 `number | null`; `boolean` → `boolean`; `tags` → `string[]`; `subform` → `Record<string, unknown>`
@@ -75,10 +75,14 @@ replaces the help and is announced with `role="alert"`), the required marker,
   default. `registerDefaults` registers it at `screen.custom` / target `unsaved-changes`
   (`UNSAVED_CHANGES_TARGET`), so the generated route containers resolve it through the registry and
   an app replaces it per schema at the same coordinates — no new contract key.
-- `DataGridList` under the `sm` breakpoint (`useCompactLayout()` from the runtime, or `compact`):
-  one outlined card per row with the first `COMPACT_CARD_COLUMNS` (3) columns as a `dl`, the row
-  action as a full-width button and a `TablePagination`; touch targets take
-  `min-height: var(--sb-density-row)` (44px by default, 32px in the dense mode).
+- `DataGridList` is registered at `screen.list` and `screen.grid` with target `table`
+  (`LIST_BODY_TARGET`), so the generated table screens resolve it through the registry and an app
+  replaces the body per schema at the same coordinates. Under the `sm` breakpoint
+  (`useCompactLayout()` from the runtime, or `compact`): one outlined card per row with the first
+  `COMPACT_CARD_COLUMNS` (3) columns as a `dl`, the row action as a full-width button and a
+  `TablePagination`; touch targets take `min-height: var(--sb-density-row)` (44px by default, 32px
+  in the dense mode). With `testIdPrefix` (`<schema>-<kind>`) both layouts carry `<prefix>-table`,
+  `-row-<id>`, `-open-<id>`, `-sort-<field>`, `-pager` and `-page-previous|current|next`.
 
 `useSchemaForm(zodSchema, defaults)` wraps react-hook-form with the zod resolver and returns
 `{ control, handleSubmit, fieldError(name), form }`.
@@ -99,16 +103,19 @@ for `#hex`, `rgb(` and `hsl(`. MUI's own defaults (greys, dividers) stay MUI's.
 component; parity: every `COMPONENT_KEYS` entry plus `list.column.<LIST_COLUMN_TYPES>` resolves
 after `registerDefaults` on a fresh registry and has a manifest entry. jsdom has no layout, so
 `DataGridList` exposes `disableVirtualization` as a test-only seam that makes the virtualised
-grid render its rows; production never sets it.
+grid render its rows; the testing harness registers the body with it (`registerHarnessSeams`),
+production never sets it.
 
 ## Agent panel (`src/agent/AgentPanel.tsx`)
 
-`registerDefaults` makes two registrations beyond the one-per-key defaults, both `screen.custom`
-with schema `'*'` and source `generated`: target `agent-panel` (`AGENT_PANEL_TARGET`) is this panel,
-target `unsaved-changes` (`UNSAVED_CHANGES_TARGET`) the unsaved-changes dialog. Both are
-target-exact, so they never shadow the universal `screen.custom`; the generated `AgentPanelSlot`
-resolves the first with `useComponent('screen.custom', schema, 'agent-panel')`, the generated route
-containers the second. `EXTRA_REGISTRATIONS` is that count for the parity test.
+`registerDefaults` makes four registrations beyond the one-per-key defaults, all with schema `'*'`
+and source `generated`: `screen.custom` at target `agent-panel` (`AGENT_PANEL_TARGET`) is this
+panel, `screen.custom` at `unsaved-changes` (`UNSAVED_CHANGES_TARGET`) the unsaved-changes dialog,
+and `screen.list` / `screen.grid` at `table` (`LIST_BODY_TARGET`) the DataGrid body. All are
+target-exact, so they never shadow a universal match; the generated `AgentPanelSlot` resolves the
+first with `useComponent('screen.custom', schema, 'agent-panel')`, the generated route containers
+the second, the generated table screens the last two. `EXTRA_REGISTRATIONS` is that count for the
+parity test.
 
 `AgentPanel { operationId, args, ifMatch?, onApplied?, disabled? }` (the generated slot's
 `schema`/`values` are accepted; `values` stands in for `args`) renders nothing when

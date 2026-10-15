@@ -22,6 +22,7 @@ export const TRANSLATIONS: Readonly<Record<string, Readonly<Record<string, strin
     'pet.field.status.label': 'Statut',
     'pet.action.pet_create.label': 'Créer',
     'common.open': 'Ouvrir',
+    'list.open': 'Ouvrir',
     'common.cancel': 'Annuler',
     'common.empty': 'Rien à afficher pour le moment',
     'screen.skipToContent': 'Aller au contenu principal',

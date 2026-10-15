@@ -172,10 +172,12 @@ export const COMMON_I18N: Readonly<Record<string, string>> = {
   'common.error': 'Something went wrong',
   'common.filter': 'Filter',
   'common.forbidden': 'You do not have access to this',
+  'common.home': 'Home',
   'common.loading': 'Loading',
   'common.navigation': 'Navigation',
   'common.next': 'Next',
   'common.notFound': 'Not found',
+  'common.notFoundDescription': 'There is nothing at this address.',
   'common.open': 'Open',
   'common.page': 'Page',
   'common.previous': 'Previous',
@@ -183,6 +185,15 @@ export const COMMON_I18N: Readonly<Record<string, string>> = {
   'common.save': 'Save',
   'common.sort': 'Sort',
   'common.system': 'System',
+  // Validation messages (typescript/05 §7): one key per zod issue kind, never zod's own text.
+  'validation.invalid': 'Check this value',
+  'validation.invalidFormat': 'Enter a valid {format}',
+  'validation.invalidOption': 'Choose one of the options',
+  'validation.max': 'Must be at most {max}',
+  'validation.maxLength': 'At most {max} characters',
+  'validation.min': 'Must be at least {min}',
+  'validation.minLength': 'At least {min} characters',
+  'validation.required': '{label} is required',
 };
 
 export function plan(model: FeatureModel): GenerationPlan {

@@ -76,8 +76,10 @@ describe('?lang= locale switch', () => {
     });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Liste des animaux');
     expect(screen.getByTestId('pet-list-sort-name').textContent).toBe('Nom');
+    // The table body is the renderer's: its `list.open` key follows the table too.
     expect(screen.getAllByText('Ouvrir').length).toBeGreaterThan(0);
-    expect(screen.getByTestId('pet-list-page-next').textContent).toBe('Next');
+    // A key the French table lacks falls back to the generated default.
+    expect(screen.getByTestId('pet-list-sort-notes').textContent).toBe('Notes');
   });
 
   it('the app frame follows the locale too: nav label and skip link', () => {

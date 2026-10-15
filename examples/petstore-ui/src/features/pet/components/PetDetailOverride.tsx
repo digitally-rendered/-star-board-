@@ -1,9 +1,13 @@
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader';
 import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
 import type { ReactElement } from 'react';
 import {
+  EMPTY_VALUE,
+  hasValue,
   retryAction,
   stateProps,
   useResolved,
@@ -31,6 +35,8 @@ export function PetDetailOverride(props: PetDetailScreenProps): ReactElement {
   const Empty = useResolved<StateProps>('state.empty', 'pet', 'pet_get');
   const UpdateAction = useResolved<ActionProps>('action.update', 'pet', 'pet_update');
   const DeleteAction = useResolved<ActionProps>('action.delete', 'pet', 'pet_delete');
+  // Back is the same resolved `action.custom` the generated screens use (target `back`).
+  const BackAction = useResolved<ActionProps>('action.custom', 'pet', 'back');
   const StatusCell = useResolved<CellProps>('list.column.enum', 'pet', 'status');
   const SpeciesCell = useResolved<CellProps>('list.column.enum', 'pet', 'species');
   const NotesCell = useResolved<CellProps>('list.column.string', 'pet', 'notes');
@@ -68,8 +74,16 @@ export function PetDetailOverride(props: PetDetailScreenProps): ReactElement {
     >
       <CardHeader
         disableTypography
-        title={<h1 style={{ margin: 0 }}>{entity.name}</h1>}
-        subheader={<StatusCell value={entity.status} row={entity} column={PET_COLUMNS.status} />}
+        title={
+          <Typography component="h1" variant="h4">
+            {entity.name}
+          </Typography>
+        }
+        subheader={
+          <Box sx={{ mt: 1 }}>
+            <StatusCell value={entity.status} row={entity} column={PET_COLUMNS.status} />
+          </Box>
+        }
         action={
           <Stack
             direction="row"
@@ -78,29 +92,45 @@ export function PetDetailOverride(props: PetDetailScreenProps): ReactElement {
             aria-label={t('pet.screen.detail.title')}
             data-testid="pet-detail-actions"
           >
-            {update === undefined ? null : <UpdateAction {...update} />}
+            {update === undefined ? null : <UpdateAction {...update} variant="contained" />}
             {remove === undefined ? null : <DeleteAction {...remove} />}
           </Stack>
         }
         data-testid="pet-detail-header"
       />
       <CardContent>
-        <dl data-testid="pet-detail-fields">
+        {/* The renderer's definition-list spacing: a muted caption above each value, one row gap apart. */}
+        <Stack component="dl" spacing={2} sx={{ m: 0 }} data-testid="pet-detail-fields">
           {SHOWN.map((field) => {
             const Cell = cells[field];
+            const value = entity[field];
             return (
-              <div key={field} data-testid={`pet-detail-field-${field}`}>
-                <dt>{PET_COLUMNS[field].headerName}</dt>
-                <dd>
-                  <Cell value={entity[field]} row={entity} column={PET_COLUMNS[field]} />
-                </dd>
-              </div>
+              <Box key={field} data-testid={`pet-detail-field-${field}`}>
+                <Typography component="dt" variant="caption" color="text.secondary">
+                  {PET_COLUMNS[field].headerName}
+                </Typography>
+                <Box component="dd" sx={{ m: 0 }}>
+                  {hasValue(value) ? (
+                    <Cell value={value} row={entity} column={PET_COLUMNS[field]} />
+                  ) : (
+                    <Typography component="span" color="text.secondary">
+                      {EMPTY_VALUE}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
             );
           })}
-        </dl>
-        <button type="button" data-testid="pet-detail-back" onClick={props.onBack}>
-          {t('common.back')}
-        </button>
+        </Stack>
+        <Box sx={{ mt: 3 }}>
+          <BackAction
+            operationId="back"
+            label={t('common.back')}
+            variant="outlined"
+            testId="pet-detail-back"
+            onClick={props.onBack}
+          />
+        </Box>
       </CardContent>
     </Card>
   );

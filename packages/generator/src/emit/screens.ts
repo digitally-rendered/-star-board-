@@ -30,17 +30,24 @@ const RENDERER_TYPES = [
   'FieldDescriptor',
   'FieldProps',
   'HelpProps',
+  'ListProps',
   'Option',
   'StateProps',
   'UnsavedChangesDialogProps',
 ];
+
+/** The registry target of the table body: `screen.list` / `screen.grid` at `table` (renderer `LIST_BODY_TARGET`). */
+export const TABLE_TARGET = 'table';
+/** The registry target of the cancel and back buttons: `action.custom` at `cancel` / `back`. */
+export const CANCEL_TARGET = 'cancel';
+export const BACK_TARGET = 'back';
 
 export function emitContract(source: Source, renderer: string): GeneratedFile {
   return {
     path: CONTRACT_PATH,
     contents: lines([
       header(source),
-      "import type { ComponentType } from 'react';",
+      "import type { ComponentType, CSSProperties } from 'react';",
       "import type { ComponentKey, ListColumnKey } from '@star-board/core';",
       `import type { ${RENDERER_TYPES.join(', ')} } from ${quote(renderer)};`,
       "import { useComponent } from '@star-board/runtime';",
@@ -155,26 +162,52 @@ export function emitContract(source: Source, renderer: string): GeneratedFile {
       '  return retry === undefined ? undefined : { label, onClick: retry };',
       '}',
       '',
-      '/** The direction a sort header toggles to. */',
-      'export function nextDirection(sort: SortState | undefined, field: string): SortDirection {',
-      "  return sort !== undefined && sort.field === field && sort.dir === 'asc' ? 'desc' : 'asc';",
+      '/** The columns a table shows: the ones not hidden, in order (the body receives the descriptors). */',
+      'export function visibleColumns(columns: readonly ColumnSpec[]): ColumnSpec[] {',
+      '  return columns.filter((column) => !column.hidden);',
       '}',
       '',
-      '/** Fields of `columns` that are not hidden. */',
-      'export function shownFields(columns: readonly ColumnSpec[]): ReadonlySet<string> {',
-      '  return new Set(columns.filter((column) => !column.hidden).map((column) => column.field));',
-      '}',
-      '',
-      '/** How many columns a compact card shows (typescript/05 §6: wider tables need a responsive pattern). */',
-      'export const COMPACT_CARD_COLUMNS = 3;',
-      '',
-      '/** The shown fields a compact card carries: the first `limit` in column order. */',
-      'export function cardFields(',
+      '/**',
+      " * The columns with their headers in the provider's locale (typescript/05 §7): `columns.ts` holds",
+      ' * the default text, the screen reads `useT()` and hands the translated labels by field.',
+      ' */',
+      'export function localisedColumns(',
       '  columns: readonly ColumnSpec[],',
-      '  limit: number = COMPACT_CARD_COLUMNS,',
-      '): ReadonlySet<string> {',
-      '  return new Set([...shownFields(columns)].slice(0, limit));',
+      '  headers: Readonly<Record<string, string>>,',
+      '): ColumnSpec[] {',
+      '  return columns.map((column) => ({ ...column, headerName: headers[column.field] ?? column.headerName }));',
       '}',
+      '',
+      '/** What a detail shows in place of a missing value. */',
+      "export const EMPTY_VALUE = '—';",
+      '',
+      '/** Whether a detail value is worth a cell; otherwise the screen shows `EMPTY_VALUE`. */',
+      'export function hasValue(value: unknown): boolean {',
+      "  return value !== undefined && value !== null && value !== '';",
+      '}',
+      '',
+      "const SPACE_2 = 'var(--sb-space-2, 8px)';",
+      "const SPACE_3 = 'var(--sb-space-3, 16px)';",
+      '',
+      '/**',
+      " * Layout of the generated screens: spacing from the tokens' CSS variables (ThemeRoot writes",
+      ' * them), never a colour or a font, so the renderer stays the one visual authority.',
+      ' */',
+      'export const layout = {',
+      "  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: SPACE_3, marginBottom: SPACE_3 },",
+      '  heading: { margin: 0 },',
+      "  subheading: { margin: 0, marginBottom: SPACE_2, fontSize: '1rem' },",
+      "  toolbar: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: SPACE_2 },",
+      "  actions: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: SPACE_2, marginTop: SPACE_3 },",
+      "  filters: { display: 'flex', flexWrap: 'wrap', gap: SPACE_3, marginBottom: SPACE_3 },",
+      "  filter: { flex: '1 1 240px', maxWidth: 360 },",
+      "  stack: { display: 'grid', gap: SPACE_3 },",
+      "  group: { display: 'grid', gap: SPACE_3, border: 0, padding: 0, margin: 0, minWidth: 0 },",
+      '  legend: { padding: 0, marginBottom: SPACE_2, fontWeight: 600 },',
+      "  definitions: { display: 'grid', gap: SPACE_3, margin: 0 },",
+      "  term: { fontSize: '0.75rem', lineHeight: 1.66, opacity: 0.72, marginBottom: 2 },",
+      "  definition: { margin: 0, display: 'grid', gap: 4, justifyItems: 'start', width: 'fit-content', maxWidth: '100%' },",
+      '} as const satisfies Record<string, CSSProperties>;',
       '',
       '/** A reference field has no lookup by default; register a `field.reference` override that searches. */',
       'export function noReferenceSearch(): Promise<Option[]> {',
@@ -369,27 +402,48 @@ function deniedTitle(posture: GenerationPlan['posture']): string {
   return posture === '403' ? "t('common.forbidden')" : "t('common.notFound')";
 }
 
-function stateHooks(schema: SchemaPlan, operationId: string, posture: GenerationPlan['posture']) {
+interface StateOptions {
+  /** A table body renders its own loading (skeleton) and empty states, so the screen resolves neither. */
+  loading?: boolean;
+  empty?: boolean;
+}
+
+function stateHooks(
+  schema: SchemaPlan,
+  operationId: string,
+  posture: GenerationPlan['posture'],
+  options: StateOptions = {},
+): string[] {
   const s = quote(schema.name);
   const o = quote(operationId);
   const denied = posture === '403' ? 'state.forbidden' : 'state.empty';
   return [
-    `const Loading = useResolved<StateProps>('state.loading', ${s}, ${o});`,
+    options.loading === false
+      ? null
+      : `const Loading = useResolved<StateProps>('state.loading', ${s}, ${o});`,
     `const ErrorState = useResolved<StateProps>('state.error', ${s}, ${o});`,
-    `const Empty = useResolved<StateProps>('state.empty', ${s}, ${o});`,
+    options.empty === false
+      ? null
+      : `const Empty = useResolved<StateProps>('state.empty', ${s}, ${o});`,
     `// Posture ${posture} (hexagonal-rules shared/01 §5): what a missing capability shows.`,
     `const Denied = useResolved<StateProps>('${denied}', ${s}, ${o});`,
-  ];
+  ].filter((l): l is string => l !== null);
 }
 
-function stateReturns(posture: GenerationPlan['posture'], retry = 'props.retry'): string[] {
+function stateReturns(
+  posture: GenerationPlan['posture'],
+  retry = 'props.retry',
+  options: StateOptions = {},
+): string[] {
   return [
-    `if (props.status === 'loading') return <Loading {...stateProps(t('common.loading'))} />;`,
+    options.loading === false
+      ? null
+      : `if (props.status === 'loading') return <Loading {...stateProps(t('common.loading'))} />;`,
     `if (props.status === 'forbidden') return <Denied {...stateProps(${deniedTitle(posture)}, props.error)} />;`,
     `if (props.status === 'error') {`,
     `  return <ErrorState {...stateProps(t('common.error'), props.error, retryAction(t('common.retry'), ${retry}))} />;`,
     '}',
-  ];
+  ].filter((l): l is string => l !== null);
 }
 
 function cellHook(schema: string, field: string, key: string): string {
@@ -489,20 +543,8 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
   const rowType = kind === 'list' ? pascal : `Partial<${pascal}>`;
   const views = kind === 'grid' ? schema.columns.views : [];
   // Columns a table may show: the list projection, or the union of every view's projection.
-  const columns: { column: ColumnPlan; descriptor: string }[] =
-    kind === 'list'
-      ? schema.columns.list.map((c) => ({
-          column: c,
-          descriptor: `${columnsConstName(schema)}.${c.field}`,
-        }))
-      : dedupe(
-          views.flatMap((v) =>
-            v.columns.map((c) => ({
-              column: c,
-              descriptor: `${viewColumnsObjectName(v.view)}.${c.field}`,
-            })),
-          ),
-        );
+  const columns: ColumnPlan[] =
+    kind === 'list' ? schema.columns.list : dedupeColumns(views.flatMap((v) => v.columns));
   const filterFields = dedupeStrings(views.flatMap((v) => v.filters.map((f) => f.field)));
   const fieldByName = new Map(schema.fields.map((f) => [f.name, f]));
   const filterKey = (field: string): 'field.select' | 'field.text' =>
@@ -525,68 +567,47 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
     `onOpen: (id: ${pascal}Id) => void;`,
   ];
   const needsFieldProps = filterFields.length > 0;
-  const columnImports = [
-    ...new Set([
-      ...columns.map((c) => c.descriptor.split('.')[0] ?? ''),
-      ...filterFields
-        .filter((f) => filterKey(f) === 'field.select')
-        .map((f) => optionsConstName(schema, f)),
-    ]),
-  ].sort();
+  const optionImports = filterFields
+    .filter((f) => filterKey(f) === 'field.select')
+    .map((f) => optionsConstName(schema, f))
+    .sort();
   const imports = [
     "import type { ReactElement } from 'react';",
     "import { useT } from '../../i18n.js';",
-    `import {\n  cardFields,\n  nextDirection,\n  retryAction,\n  shownFields,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${needsFieldProps ? '  type FieldProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n  type TableProps,\n} from '../contract.js';`,
-    `import { ${columnImports.join(', ')} } from './columns.js';`,
+    `import {\n  layout,\n  localisedColumns,\n  retryAction,\n  stateProps,\n  useResolved,\n  visibleColumns,\n  type ActionProps,\n  type CellProps,\n${needsFieldProps ? '  type FieldProps,\n' : ''}  type ListProps,\n  type ScreenStatus,\n  type StateProps,\n  type TableProps,\n} from '../contract.js';`,
+    optionImports.length > 0 ? `import { ${optionImports.join(', ')} } from './columns.js';` : null,
     `import type { ${pascal}, ${pascal}Id } from './types.js';`,
   ];
-  const openButton = `<button type="button" data-testid={\`${testId(name, kind, 'open')}-\${id}\`} onClick={() => { props.onOpen(id); }}>\n  {t('common.open')}\n</button>`;
-  const openControl =
-    kind === 'list' ? openButton : `{id === undefined ? null : (\n${indent(openButton)}\n)}`;
-  const openCell = `<td>\n${indent(openControl)}\n</td>`;
-  // A view row may omit the id; the list row always carries it.
-  const rowKey = kind === 'list' ? 'id' : 'id ?? String(index)';
-  const rowMap = kind === 'list' ? '(row) => {' : '(row, index) => {';
   const title = kind === 'list' ? `t(${quote(screen.titleKey)})` : 'props.title';
-  // The compact body (typescript/05 §6): one card per row, the first shown columns, the row action.
-  // It keeps the table's page-object ids (`-table`, `-row-<id>`, `-open-<id>`) under `data-layout="cards"`.
-  const cards = [
-    `<ul aria-label={${title}} data-testid=${tid('table')} data-layout="cards">`,
-    `  {props.rows.map(${rowMap}`,
-    `    const id = row.${idField};`,
-    '    return (',
-    `      <li key={${rowKey}} data-testid={\`${testId(name, kind, 'row')}-\${${rowKey}}\`}>`,
-    '        <dl>',
-    ...columns.map((c) =>
-      indent(
-        `{cards.has(${quote(c.column.field)}) ? (\n  <div>\n    <dt>{${labelCall(plan, `${name}.field.${c.column.field}.label`)}}</dt>\n    <dd>\n      <${componentName(c.column.field, 'Cell')} value={row.${c.column.field}} row={row} column={${c.descriptor}} />\n    </dd>\n  </div>\n) : null}`,
-        5,
-      ),
-    ),
-    '        </dl>',
-    indent(openControl, 4),
-    '      </li>',
-    '    );',
-    '  })}',
-    '</ul>',
-  ];
+  // A view row may omit the id; the list row always carries it.
+  const rowId =
+    kind === 'list' ? `(row) => row.${idField}` : `(row) => row.${idField} ?? JSON.stringify(row)`;
+  const open =
+    kind === 'list'
+      ? `(row) => { props.onOpen(row.${idField}); }`
+      : `(row) => { if (row.${idField} !== undefined) props.onOpen(row.${idField}); }`;
   const body = [
     `export function ${screen.component}(props: ${propsName}): ReactElement {`,
     ...indentAll([
       'const t = useT();',
-      ...stateHooks(schema, screen.operationId, plan.posture),
+      ...stateHooks(schema, screen.operationId, plan.posture, { loading: false, empty: false }),
       ...collectionActions.map(
         (a) =>
           `const ${actionComponentName(a)} = useResolved<ActionProps>(${quote(a.key)}, ${quote(name)}, ${quote(a.id)});`,
       ),
-      ...columns.map((c) => cellHook(name, c.column.field, c.column.key)),
+      '// The table body (typescript/05 §6): the renderer registers its DataGrid at target `table`; the same',
+      '// props drive the compact card list, and an app replaces the body per schema at these coordinates.',
+      `const Table = useResolved<ListProps<${rowType}>>(${quote(screen.key)}, ${quote(name)}, ${quote(TABLE_TARGET)});`,
+      ...columns.map((c) => cellHook(name, c.field, c.key)),
       ...filterFields.map(
         (field) =>
           `const ${componentName(field, 'Filter')} = useResolved<FieldProps<string>>(${quote(filterKey(field))}, ${quote(name)}, ${quote(field)});`,
       ),
-      'const shown = shownFields(props.columns);',
-      'const cards = cardFields(props.columns);',
-      ...stateReturns(plan.posture),
+      '// Cell renderers by field, each resolved at (schema, field) so a column override reaches the table.',
+      `const cells = { ${columns.map((c) => `${c.field}: ${componentName(c.field, 'Cell')}`).join(', ')} };`,
+      "// Column headers in the provider's locale; columns.ts carries the defaults.",
+      `const headers = { ${columns.map((c) => `${c.field}: ${labelCall(plan, `${name}.field.${c.field}.label`)}`).join(', ')} };`,
+      ...stateReturns(plan.posture, 'props.retry', { loading: false }),
       ...collectionActions.map(
         (a) =>
           `const ${a.id} = props.actions.find((action) => action.operationId === ${quote(a.id)});`,
@@ -595,9 +616,9 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
       ...indentAll([
         `<section data-testid=${tid('screen')}>`,
         ...indentAll([
-          `<header data-testid=${tid('header')}>`,
-          `  <h1>{${title}}</h1>`,
-          `  <div role="toolbar" aria-label={${title}} data-testid=${tid('actions')}>`,
+          `<header data-testid=${tid('header')} style={layout.header}>`,
+          `  <h1 style={layout.heading}>{${title}}</h1>`,
+          `  <div role="toolbar" aria-label={${title}} data-testid=${tid('actions')} style={layout.toolbar}>`,
           ...collectionActions.map(
             (a) =>
               `    {${a.id} === undefined ? null : <${actionComponentName(a)} {...${a.id}} />}`,
@@ -606,65 +627,32 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
           '</header>',
           ...(filterFields.length > 0
             ? [
-                `<div role="search" aria-label={t('common.filter')} data-testid=${tid('filters')}>`,
+                `<div role="search" aria-label={t('common.filter')} data-testid=${tid('filters')} style={layout.filters}>`,
                 ...filterFields.map((field) =>
                   indent(
-                    `{props.filterable.includes(${quote(field)}) ? (\n  <${componentName(field, 'Filter')}\n    name=${attr(field)}\n    label={${labelCall(plan, `${name}.field.${field}.label`)}}\n    required={false}\n    value={props.filters[${quote(field)}] ?? ''}\n    onChange={(value) => { props.onFilter(${quote(field)}, value); }}\n${filterKey(field) === 'field.select' ? `    options={[...${optionsConstName(schema, field)}]}\n` : ''}  />\n) : null}`,
+                    `{props.filterable.includes(${quote(field)}) ? (\n  <div style={layout.filter}>\n    <${componentName(field, 'Filter')}\n      name=${attr(field)}\n      label={${labelCall(plan, `${name}.field.${field}.label`)}}\n      required={false}\n      value={props.filters[${quote(field)}] ?? ''}\n      onChange={(value) => { props.onFilter(${quote(field)}, value); }}\n${filterKey(field) === 'field.select' ? `      options={[...${optionsConstName(schema, field)}]}\n` : ''}    />\n  </div>\n) : null}`,
                   ),
                 ),
                 '</div>',
               ]
             : []),
-          '{props.rows.length === 0 ? (',
-          `  <Empty {...stateProps(t('common.empty'))} />`,
-          ') : props.compact ? (',
-          ...indentAll(cards),
-          ') : (',
-          ...indentAll([
-            `<table data-testid=${tid('table')}>`,
-            ...indentAll([
-              '<thead>',
-              '  <tr>',
-              ...columns.map(({ column: c }) =>
-                indent(
-                  c.sortable
-                    ? `{shown.has(${quote(c.field)}) ? (\n  <th scope="col">\n    <button type="button" data-testid=${tid('sort', c.field)} onClick={() => { props.onSort(${quote(c.field)}, nextDirection(props.sort, ${quote(c.field)})); }}>\n      {${labelCall(plan, `${name}.field.${c.field}.label`)}}\n    </button>\n  </th>\n) : null}`
-                    : `{shown.has(${quote(c.field)}) ? <th scope="col">{${labelCall(plan, `${name}.field.${c.field}.label`)}}</th> : null}`,
-                  2,
-                ),
-              ),
-              `    <th scope="col">{t('common.open')}</th>`,
-              '  </tr>',
-              '</thead>',
-              '<tbody>',
-              `  {props.rows.map(${rowMap}`,
-              `    const id = row.${idField};`,
-              '    return (',
-              `      <tr key={${rowKey}} data-testid={\`${testId(name, kind, 'row')}-\${${rowKey}}\`}>`,
-              ...columns.map((c) =>
-                indent(
-                  `{shown.has(${quote(c.column.field)}) ? (\n  <td>\n    <${componentName(c.column.field, 'Cell')} value={row.${c.column.field}} row={row} column={${c.descriptor}} />\n  </td>\n) : null}`,
-                  4,
-                ),
-              ),
-              indent(openCell, 4),
-              '      </tr>',
-              '    );',
-              '  })}',
-              '</tbody>',
-            ]),
-            '</table>',
-          ]),
-          ')}',
-          `<nav aria-label={t('common.page')} data-testid=${tid('pager')}>`,
-          `  <button type="button" data-testid=${tid('page', 'previous')} disabled={props.page.page <= 1} onClick={() => { props.onPage(props.page.page - 1); }}>`,
-          "    {t('common.previous')}",
-          '  </button>',
-          `  <span data-testid=${tid('page', 'current')}>{props.page.page}</span>`,
-          `  <button type="button" data-testid=${tid('page', 'next')} disabled={props.page.page * props.page.pageSize >= props.page.total} onClick={() => { props.onPage(props.page.page + 1); }}>`,
-          "    {t('common.next')}",
-          '  </button>',
-          '</nav>',
+          '<Table',
+          '  rows={props.rows}',
+          '  columns={localisedColumns(visibleColumns(props.columns), headers)}',
+          '  cells={cells}',
+          '  total={props.page.total}',
+          '  page={props.page.page - 1}',
+          '  pageSize={props.page.pageSize}',
+          '  onPage={(page) => { props.onPage(page + 1); }}',
+          '  onSort={props.onSort}',
+          '  onFilter={props.onFilter}',
+          `  onRowClick={${open}}`,
+          "  loading={props.status === 'loading'}",
+          `  getRowId={${rowId}}`,
+          "  emptyLabel={t('common.empty')}",
+          '  compact={props.compact}',
+          `  testIdPrefix=${attr(testId(name, kind))}`,
+          '/>',
         ]),
         '</section>',
       ]),
@@ -687,11 +675,9 @@ function emitTableScreen(ctx: ScreenContext, kind: 'list' | 'grid'): GeneratedFi
   };
 }
 
-function dedupe<T extends { column: ColumnPlan }>(columns: T[]): T[] {
+function dedupeColumns(columns: ColumnPlan[]): ColumnPlan[] {
   const seen = new Set<string>();
-  return columns.filter((c) =>
-    seen.has(c.column.field) ? false : (seen.add(c.column.field), true),
-  );
+  return columns.filter((c) => (seen.has(c.field) ? false : (seen.add(c.field), true)));
 }
 
 function dedupeStrings(values: string[]): string[] {
@@ -718,19 +704,21 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
   const visible = schema.fields.filter((f) => !f.hidden);
   // Record fields first, system (audit) fields in a trailing section.
   const fields = [...visible.filter((f) => !f.audit), ...visible.filter((f) => f.audit)];
-  const itemActions = schema.actions.filter(
-    (a) =>
-      a.item && (a.kind === 'update' || a.kind === 'delete' || (a.kind === 'custom' && a.mutation)),
-  );
+  // Update first, then the custom operations, delete last (the destructive action sits at the end).
+  const itemActions = [
+    ...schema.actions.filter((a) => a.item && a.kind === 'update'),
+    ...schema.actions.filter((a) => a.item && a.kind === 'custom' && a.mutation),
+    ...schema.actions.filter((a) => a.item && a.kind === 'delete'),
+  ];
   const withHelp = fields.filter((f) => `${name}.field.${f.name}.help` in plan.i18n);
   const tid = (...rest: string[]) => attr(testId(name, 'detail', ...rest));
   const propsName = `${screen.component}Props`;
   const fieldBlock = (f: FieldPlan): string =>
     lines([
       `<div data-testid=${tid('field', f.name)}>`,
-      `  <dt>{${labelCall(plan, `${name}.field.${f.name}.label`)}}</dt>`,
-      '  <dd>',
-      `    <${componentName(f.name, 'Cell')} value={entity.${f.name}} row={entity} column={${columnsConstName(schema)}.${f.name}} />`,
+      `  <dt style={layout.term}>{${labelCall(plan, `${name}.field.${f.name}.label`)}}</dt>`,
+      '  <dd style={layout.definition}>',
+      `    {hasValue(entity.${f.name}) ? <${componentName(f.name, 'Cell')} value={entity.${f.name}} row={entity} column={${columnsConstName(schema)}.${f.name}} /> : EMPTY_VALUE}`,
       withHelp.includes(f)
         ? `    <${componentName(f.name, 'Help')} text={${helpExpr(plan, name, f.name)}} id=${tid('help', f.name)} />`
         : null,
@@ -739,11 +727,15 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
     ]).trimEnd();
   // A `<dl>` admits only dt/dd groups (and divs around them), so each group is its own section.
   const list = (blocks: FieldPlan[]): string =>
-    lines(['<dl>', ...blocks.map((f) => indent(fieldBlock(f))), '</dl>']).trimEnd();
+    lines([
+      '<dl style={layout.definitions}>',
+      ...blocks.map((f) => indent(fieldBlock(f))),
+      '</dl>',
+    ]).trimEnd();
   const section = (id: string, title: string, blocks: FieldPlan[]): string =>
     lines([
       `<section data-testid=${tid('group', id)}>`,
-      `  <h2>{${title}}</h2>`,
+      `  <h2 style={layout.subheading}>{${title}}</h2>`,
       indent(list(blocks)),
       '</section>',
     ]).trimEnd();
@@ -769,7 +761,7 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
       header(source),
       "import type { ReactElement } from 'react';",
       "import { useT } from '../../i18n.js';",
-      `import {\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${withHelp.length > 0 ? '  type HelpProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';`,
+      `import {\n  EMPTY_VALUE,\n  hasValue,\n  layout,\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type CellProps,\n${withHelp.length > 0 ? '  type HelpProps,\n' : ''}  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';`,
       `import { ${columnsConstName(schema)} } from './columns.js';`,
       `import type { ${pascal} } from './types.js';`,
       '',
@@ -791,6 +783,7 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
           (a) =>
             `const ${actionComponentName(a)} = useResolved<ActionProps>(${quote(a.key)}, ${quote(name)}, ${quote(a.id)});`,
         ),
+        `const Back = useResolved<ActionProps>('action.custom', ${quote(name)}, ${quote(BACK_TARGET)});`,
         ...fields.map((f) => cellHook(name, f.name, f.columnKey)),
         ...withHelp.map(
           (f) =>
@@ -807,21 +800,21 @@ function emitDetailScreen(ctx: ScreenContext): GeneratedFile {
         ...indentAll([
           `<article data-testid=${tid('screen')}>`,
           ...indentAll([
-            `<header data-testid=${tid('header')}>`,
-            `  <h1>{t(${quote(screen.titleKey)})}</h1>`,
-            `  <div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')}>`,
+            `<header data-testid=${tid('header')} style={layout.header}>`,
+            `  <h1 style={layout.heading}>{t(${quote(screen.titleKey)})}</h1>`,
+            `  <div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')} style={layout.toolbar}>`,
             ...itemActions.map(
               (a) =>
                 `    {${a.id} === undefined ? null : <${actionComponentName(a)} {...${a.id}} />}`,
             ),
             '  </div>',
             '</header>',
-            `<div data-testid=${tid('fields')}>`,
+            `<div data-testid=${tid('fields')} style={layout.stack}>`,
             ...groups.map((g) => indent(g)),
             '</div>',
-            `<button type="button" data-testid=${tid('back')} onClick={props.onBack}>`,
-            "  {t('common.back')}",
-            '</button>',
+            '<div style={layout.actions}>',
+            `  <Back operationId=${attr(BACK_TARGET)} label={t('common.back')} variant="outlined" testId=${tid('back')} onClick={props.onBack} />`,
+            '</div>',
           ]),
           '</article>',
         ]),
@@ -861,8 +854,8 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
     g.group === null
       ? g.fields.map(fieldBlock).join('\n')
       : lines([
-          `<fieldset data-testid=${tid('group', g.group)}>`,
-          `  <legend>{${labelCall(plan, `${name}.group.${g.group}.label`)}}</legend>`,
+          `<fieldset data-testid=${tid('group', g.group)} style={layout.group}>`,
+          `  <legend style={layout.legend}>{${labelCall(plan, `${name}.group.${g.group}.label`)}}</legend>`,
           ...g.fields.map((f) => indent(fieldBlock(f))),
           '</fieldset>',
         ]).trimEnd(),
@@ -885,6 +878,7 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
   const needsReference = fields.some((f) => f.key === 'field.reference');
   const contractImports = [
     'fieldText',
+    'layout',
     needsReference ? 'noReferenceSearch' : null,
     kind === 'edit' ? 'retryAction' : null,
     'stateProps',
@@ -930,6 +924,7 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
           ? `const ErrorState = useResolved<StateProps>('state.error', ${quote(name)}, ${quote(screen.operationId)});`
           : null,
         `const Submit = useResolved<ActionProps>(${quote(actionKey)}, ${quote(name)}, ${quote(screen.operationId)});`,
+        `const Cancel = useResolved<ActionProps>('action.custom', ${quote(name)}, ${quote(CANCEL_TARGET)});`,
         `// Regulated wording (typescript/05 §4): the reviewed disclaimer of this screen, empty unless a translation sets it.`,
         `const Disclaimer = useResolved<HelpProps>('help.inline', ${quote(name)}, ${quote(screen.operationId)});`,
         `const disclaimer = t(${quote(disclaimerKey)});`,
@@ -947,16 +942,18 @@ function emitFormScreen(ctx: ScreenContext, kind: 'create' | 'edit'): GeneratedF
         ...indentAll([
           `<form data-testid=${tid('screen')} noValidate onSubmit={(event) => { event.preventDefault(); props.onSubmit(); }}>`,
           ...indentAll([
-            `<h1>{t(${quote(screen.titleKey)})}</h1>`,
+            '<header style={layout.header}>',
+            `  <h1 style={layout.heading}>{t(${quote(screen.titleKey)})}</h1>`,
+            '</header>',
             `{disclaimer === '' ? null : <Disclaimer id=${tid('disclaimer')} text={disclaimer} />}`,
-            ...groups.map((g) => g),
+            '<div style={layout.stack}>',
+            ...groups.map((g) => indent(g)),
+            '</div>',
             `{props.submitError === undefined ? null : <ErrorState {...stateProps(t('common.error'), props.submitError)} />}`,
             `<AgentPanelSlot schema=${attr(name)} operationId=${attr(screen.operationId)} args={props.values} ifMatch={${kind === 'edit' ? 'props.ifMatch' : 'undefined'}} onApplied={props.onAgentApplied} disabled={props.pending} />`,
-            `<div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')}>`,
-            `  <Submit operationId=${attr(screen.operationId)} label={${labelCall(plan, action?.labelKey ?? 'common.save')}} disabled={props.pending} onClick={props.onSubmit} />`,
-            `  <button type="button" data-testid=${tid('cancel')} onClick={props.onCancel}>`,
-            "    {t('common.cancel')}",
-            '  </button>',
+            `<div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')} style={layout.actions}>`,
+            `  <Submit operationId=${attr(screen.operationId)} label={${labelCall(plan, action?.labelKey ?? 'common.save')}} variant="contained" disabled={props.pending} onClick={props.onSubmit} />`,
+            `  <Cancel operationId=${attr(CANCEL_TARGET)} label={t('common.cancel')} variant="outlined" testId=${tid('cancel')} onClick={props.onCancel} />`,
             '</div>',
           ]),
           '</form>',
@@ -985,7 +982,7 @@ function emitCustomScreen(ctx: ScreenContext): GeneratedFile {
       `// Replace the whole screen by registering 'screen.custom' for (${quote(name)}, ${quote(screen.operationId)}) in src/features/${name}/index.ts.`,
       "import type { ReactElement } from 'react';",
       "import { useT } from '../../i18n.js';",
-      "import {\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';",
+      "import {\n  layout,\n  retryAction,\n  stateProps,\n  useResolved,\n  type ActionProps,\n  type ScreenStatus,\n  type StateProps,\n} from '../contract.js';",
       '',
       `export interface ${propsName} {`,
       '  status: ScreenStatus;',
@@ -1002,19 +999,22 @@ function emitCustomScreen(ctx: ScreenContext): GeneratedFile {
         'const t = useT();',
         ...stateHooks(schema, screen.operationId, plan.posture),
         `const Run = useResolved<ActionProps>(${quote(action?.key ?? 'action.custom')}, ${quote(name)}, ${quote(screen.operationId)});`,
+        `const Back = useResolved<ActionProps>('action.custom', ${quote(name)}, ${quote(BACK_TARGET)});`,
         ...stateReturns(plan.posture, 'undefined'),
         'return (',
         ...indentAll([
           `<section data-testid=${tid('screen')}>`,
-          `  <h1>{t(${quote(screen.titleKey)})}</h1>`,
-          `  <div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')}>`,
-          '    {props.action === undefined ? null : <Run {...props.action} />}',
-          '  </div>',
+          '  <header style={layout.header}>',
+          `    <h1 style={layout.heading}>{t(${quote(screen.titleKey)})}</h1>`,
+          `    <div role="toolbar" aria-label={t(${quote(screen.titleKey)})} data-testid=${tid('actions')} style={layout.toolbar}>`,
+          '      {props.action === undefined ? null : <Run {...props.action} />}',
+          '    </div>',
+          '  </header>',
           `  {props.result === undefined ? null : <pre data-testid=${tid('result')}>{JSON.stringify(props.result, null, 2)}</pre>}`,
           `  {props.result === undefined && props.action === undefined ? <Empty {...stateProps(t('common.empty'))} /> : null}`,
-          `  <button type="button" data-testid=${tid('back')} onClick={props.onBack}>`,
-          "    {t('common.back')}",
-          '  </button>',
+          '  <div style={layout.actions}>',
+          `    <Back operationId=${attr(BACK_TARGET)} label={t('common.back')} variant="outlined" testId=${tid('back')} onClick={props.onBack} />`,
+          '  </div>',
           '</section>',
         ]),
         ');',

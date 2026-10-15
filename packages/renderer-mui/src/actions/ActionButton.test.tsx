@@ -25,6 +25,27 @@ describe('actions', () => {
     await expectNoViolations(container);
   });
 
+  it('honours variant and testId for buttons that are not operations', () => {
+    render(
+      <>
+        <CustomAction
+          operationId="cancel"
+          label="Cancel"
+          onClick={vi.fn()}
+          variant="text"
+          testId="pet-create-cancel"
+        />
+        <UpdateAction operationId="pet_update" label="Save" onClick={vi.fn()} variant="contained" />
+        <CreateAction operationId="pet_create" label="New" onClick={vi.fn()} />
+      </>,
+    );
+    const cancel = screen.getByTestId('pet-create-cancel');
+    expect(cancel.className).toContain('MuiButton-text');
+    expect(screen.queryByTestId('action-cancel')).toBeNull();
+    expect(screen.getByTestId('action-pet_update').className).toContain('MuiButton-contained');
+    expect(screen.getByTestId('action-pet_create').className).toContain('MuiButton-contained');
+  });
+
   it('action.delete opens a confirmation dialog and calls onClick only on confirm', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm');
     const onClick = vi.fn(() => Promise.resolve());

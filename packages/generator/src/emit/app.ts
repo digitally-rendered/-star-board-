@@ -202,16 +202,19 @@ export function emitRoutes(plan: GenerationPlan, source: Source): GeneratedFile 
   const needsUnsaved = plan.schemas.some((s) =>
     s.screens.some((sc) => sc.kind === 'create' || sc.kind === 'edit'),
   );
+  const home = plan.nav[0]?.path ?? '/';
   return {
     path: ROUTES_PATH,
     contents: lines([
       header(source),
       "import type { ReactElement } from 'react';",
-      `import { ${needsParams ? 'useNavigate, useParams' : 'useNavigate'}, type RouteObject } from 'react-router';`,
+      `import { isRouteErrorResponse, useNavigate, ${needsParams ? 'useParams, ' : ''}useRouteError, type RouteObject } from 'react-router';`,
       needsUnsaved ? "import { useUnsavedChanges } from '@star-board/runtime';" : null,
+      "import { messageOf } from './application/support.js';",
       needsUnsaved
-        ? "import { useOptionalResolved, useResolved, type UnsavedChangesDialogProps } from './domain/contract.js';"
-        : "import { useResolved } from './domain/contract.js';",
+        ? "import { stateProps, useOptionalResolved, useResolved, type StateProps, type UnsavedChangesDialogProps } from './domain/contract.js';"
+        : "import { stateProps, useResolved, type StateProps } from './domain/contract.js';",
+      "import { useT } from './i18n.js';",
       ...plan.schemas.flatMap((schema) => {
         const hooks = schema.screens.map((s) => hookNameFor(schema, s)).sort();
         return [
@@ -229,15 +232,58 @@ export function emitRoutes(plan: GenerationPlan, source: Source): GeneratedFile 
       '/* Containers: one per generated screen, pairing its application hook with the registry-resolved screen. */',
       '',
       ...containers.flatMap((c) => [c.text, '']),
+      '/** The way back from an error or an unknown address: the first navigation entry. */',
+      `const HOME = ${quote(home)};`,
+      '',
+      '/** The not-found state: an address no route matches (the `*` route) or a 404 route error. */',
+      'export function NotFoundRoute(): ReactElement {',
+      '  const t = useT();',
+      '  const navigate = useNavigate();',
+      "  const Empty = useResolved<StateProps>('state.empty', '*', 'not-found');",
+      '  return (',
+      '    <Empty',
+      "      {...stateProps(t('common.notFound'), t('common.notFoundDescription'), {",
+      "        label: t('common.home'),",
+      '        onClick: () => {',
+      '          void navigate(HOME);',
+      '        },',
+      '      })}',
+      '    />',
+      '  );',
+      '}',
+      '',
+      '/**',
+      ' * What a route renders when it throws (`errorElement`): a 404 route error is the not-found state,',
+      " * anything else the error state with a way home. Mounted inside the app's layout, so the frame stays.",
+      ' */',
+      'export function RouteErrorRoute(): ReactElement {',
+      '  const t = useT();',
+      '  const navigate = useNavigate();',
+      '  const error: unknown = useRouteError();',
+      "  const ErrorState = useResolved<StateProps>('state.error', '*', 'route');",
+      '  if (isRouteErrorResponse(error) && error.status === 404) return <NotFoundRoute />;',
+      '  return (',
+      '    <ErrorState',
+      "      {...stateProps(t('common.error'), messageOf(error), {",
+      "        label: t('common.home'),",
+      '        onClick: () => {',
+      '          void navigate(HOME);',
+      '        },',
+      '      })}',
+      '    />',
+      '  );',
+      '}',
+      '',
       '/** Route objects in a stable order; static (no lazy loading) so the table is inspectable. */',
       'export const routes: RouteObject[] = [',
       ...plan.schemas.flatMap((schema) =>
         schema.screens.map((s) =>
           indent(
-            `{ path: ${quote(routeFor(schema, s))}, element: <${containerName(schema, s)} /> },`,
+            `{ path: ${quote(routeFor(schema, s))}, element: <${containerName(schema, s)} />, errorElement: <RouteErrorRoute /> },`,
           ),
         ),
       ),
+      "  { path: '*', element: <NotFoundRoute /> },",
       '];',
     ]),
   };
@@ -408,7 +454,7 @@ export function emitIndex(
       "export * from './adapters/client.js';",
       "export { registerGenerated } from './registry.js';",
       "export { createGeneratedRegistry } from './setup.js';",
-      "export { routes } from './routes.js';",
+      "export { NotFoundRoute, RouteErrorRoute, routes } from './routes.js';",
       "export { nav, type NavEntry } from './nav.js';",
       has(I18N_PATH)
         ? "export { t, useT, type I18nKey, type T, type Vars } from './i18n.js';"

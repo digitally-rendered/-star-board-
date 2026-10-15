@@ -98,14 +98,40 @@ describe('golden output for fixtures/petstore.json', () => {
     expect(routes).toContain('unsaved.release(() => void navigate(`/pet/${id}`))');
     expect(routes).not.toMatch(/PetListRoute\(\): ReactElement \{[^}]*unsaved/);
     expect(file(files, 'domain/contract.ts')).toContain('export function useOptionalResolved<P>(');
-    // §6 mobile: the table screens take `compact` and render the card list under the breakpoint,
-    // keeping the table's page-object ids.
-    expect(list).toContain('props.compact ? (');
-    expect(list).toContain('data-testid="pet-list-table" data-layout="cards"');
-    expect(list).toContain('const cards = cardFields(props.columns);');
+    // §6 mobile: the table screens resolve the renderer's body at target `table` and hand it
+    // `compact` (the body renders the card list under the breakpoint) with the page-object prefix.
+    expect(list).toContain(
+      "const Table = useResolved<ListProps<Pet>>('screen.list', 'pet', 'table');",
+    );
+    expect(list).toContain('compact={props.compact}');
+    expect(list).toContain('testIdPrefix="pet-list"');
+    expect(list).not.toContain('<table');
+    expect(file(files, 'domain/pet/PetGridScreen.tsx')).toContain(
+      "useResolved<ListProps<Partial<Pet>>>('screen.grid', 'pet', 'table')",
+    );
     expect(file(files, 'application/pet/usePetScreens.ts')).toContain(
       'const compact = useCompactLayout();',
     );
+    // Cancel and back go through the resolved `action.custom`, so an app restyles them per schema.
+    expect(create).toContain("useResolved<ActionProps>('action.custom', 'pet', 'cancel')");
+    expect(create).toContain('testId="pet-create-cancel"');
+    expect(file(files, 'domain/pet/PetDetailScreen.tsx')).toContain(
+      "useResolved<ActionProps>('action.custom', 'pet', 'back')",
+    );
+    // Defaults and validation wording: the create form starts from the schema defaults, and zod
+    // issues are worded through the validation keys with the field label.
+    const hooks = file(files, 'application/pet/usePetScreens.ts');
+    expect(hooks).toContain(
+      "export const PET_CREATE_DEFAULTS: Partial<PetCreate> = { 'status': 'available' };",
+    );
+    expect(hooks).toContain('dirty: isDirty(values, PET_CREATE_DEFAULTS),');
+    expect(hooks).toContain('setErrors(fieldErrors(parsed.error.issues, t, labels));');
+    expect(i18n['validation.required']).toBe('{label} is required');
+    expect(file(files, 'application/support.ts')).toContain('export function messageForIssue(');
+    // Unknown routes and thrown errors render inside the app frame through the resolved states.
+    expect(routes).toContain("{ path: '*', element: <NotFoundRoute /> }");
+    expect(routes).toContain('errorElement: <RouteErrorRoute />');
+    expect(routes).toContain("useResolved<StateProps>('state.empty', '*', 'not-found')");
     // §7 i18n: components read `t` from the provider, so a locale switch reaches them.
     for (const screen of [create, edit, list, file(files, 'domain/pet/PetDetailScreen.tsx')]) {
       expect(screen).toContain('const t = useT();');

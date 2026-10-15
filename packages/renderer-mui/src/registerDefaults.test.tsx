@@ -5,7 +5,8 @@ import { stories } from './manifest.js';
 import { AGENT_PANEL_TARGET, AgentPanel } from './agent/AgentPanel.js';
 import { UNSAVED_CHANGES_TARGET, UnsavedChangesDialog } from './dialogs/UnsavedChangesDialog.js';
 import { DEFAULT_COMPONENTS, EXTRA_REGISTRATIONS, registerDefaults } from './registerDefaults.js';
-import { CustomScreen } from './screens/ScreenShell.js';
+import { DataGridList, LIST_BODY_TARGET } from './list/DataGridList.js';
+import { CustomScreen, GridScreen, ListScreen } from './screens/ScreenShell.js';
 
 /** Every key the contract names: the fixed set plus `list.column.<type>` over the tokens' types. */
 export const CONTRACT_KEYS: readonly ComponentKey[] = [
@@ -27,8 +28,9 @@ describe('registerDefaults — parity with the component contract', () => {
       expect(registration.specificity).toBe(1);
       expect(typeof registration.component).toBe('function');
     }
-    // one registration per key plus the target-exact agent panel and unsaved-changes dialog
-    expect(EXTRA_REGISTRATIONS).toBe(2);
+    // one registration per key plus the target-exact agent panel, unsaved-changes dialog and the
+    // list body at `table` under screen.list and screen.grid
+    expect(EXTRA_REGISTRATIONS).toBe(4);
     expect(registry.size).toBe(CONTRACT_KEYS.length + EXTRA_REGISTRATIONS);
   });
 
@@ -53,6 +55,20 @@ describe('registerDefaults — parity with the component contract', () => {
     expect(dialog.target).toBe(UNSAVED_CHANGES_TARGET);
     expect(dialog.source).toBe('generated');
     expect(registry.resolve('screen.custom', 'pet', AGENT_PANEL_TARGET).component).toBe(AgentPanel);
+  });
+
+  it('registers the DataGrid body for screen.list and screen.grid at target table only', () => {
+    const registry = new ComponentRegistry();
+    registerDefaults(registry);
+    for (const key of ['screen.list', 'screen.grid'] as const) {
+      const body = registry.resolve(key, 'pet', LIST_BODY_TARGET, { role: 'any' });
+      expect(body.component).toBe(DataGridList);
+      expect(body.target).toBe(LIST_BODY_TARGET);
+      expect(body.schema).toBe('*');
+      expect(body.source).toBe('generated');
+    }
+    expect(registry.resolve('screen.list', 'pet', 'pet_list').component).toBe(ListScreen);
+    expect(registry.resolve('screen.grid', 'pet', 'a_view').component).toBe(GridScreen);
   });
 
   it('implements exactly the contract keys, no more', () => {

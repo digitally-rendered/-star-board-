@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { ListColumnType } from '@star-board/tokens';
 
 /**
@@ -94,10 +94,20 @@ export interface CellProps {
 
 export type SortDirection = 'asc' | 'desc';
 
-/** `screen.list` / `screen.grid` body: a server-side paged, sorted and filtered table. */
+/**
+ * The default `screen.list` / `screen.grid` body: a server-side paged, sorted and filtered table.
+ * `registerDefaults` registers it at both keys with target `table` (`LIST_BODY_TARGET`), so a
+ * generated screen resolves `useResolved<ListProps<Row>>('screen.list', schema, 'table')` and an
+ * app replaces the body per schema at the same coordinates (no new contract key).
+ */
 export interface ListProps<Row = Record<string, unknown>> {
-  rows: Row[];
-  columns: ColumnDescriptor[];
+  rows: readonly Row[];
+  columns: readonly ColumnDescriptor[];
+  /**
+   * Cell renderers by field, resolved through the registry by the caller (`list.column.<type>`
+   * at `(schema, field)`); a field without one renders with the renderer's cell for its type.
+   */
+  cells?: Readonly<Record<string, ComponentType<CellProps>>>;
   total: number;
   /** Zero-based. */
   page: number;
@@ -114,6 +124,13 @@ export interface ListProps<Row = Record<string, unknown>> {
    * Unset, the implementation follows the viewport (under the `sm` breakpoint).
    */
   compact?: boolean;
+  /**
+   * The page-object prefix (`<schema>-<kind>`): the body then carries `<prefix>-table`,
+   * `<prefix>-row-<id>`, `<prefix>-open-<id>`, `<prefix>-sort-<field>`, `<prefix>-pager` and
+   * `<prefix>-page-previous|current|next` as `data-testid`, so one set of selectors drives the
+   * table and the card list alike.
+   */
+  testIdPrefix?: string;
 }
 
 /** `action.<kind>`: one operation as a button; `delete` and any `confirm` text open a dialog. */
@@ -124,7 +141,13 @@ export interface ActionProps {
   destructive?: boolean;
   onClick: () => void | Promise<void>;
   confirm?: string;
+  /** Emphasis; default `contained` for `action.create`, `outlined` otherwise. */
+  variant?: ActionVariant;
+  /** The `data-testid`; default `action-<operationId>`. */
+  testId?: string;
 }
+
+export type ActionVariant = 'contained' | 'outlined' | 'text';
 
 /** `state.<kind>` */
 export interface StateProps {

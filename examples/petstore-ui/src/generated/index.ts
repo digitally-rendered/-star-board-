@@ -15,6 +15,6 @@ export * from './adapters/paths.js';
 export * from './adapters/client.js';
 export { registerGenerated } from './registry.js';
 export { createGeneratedRegistry } from './setup.js';
-export { routes } from './routes.js';
+export { NotFoundRoute, RouteErrorRoute, routes } from './routes.js';
 export { nav, type NavEntry } from './nav.js';
 export { t, useT, type I18nKey, type T, type Vars } from './i18n.js';
